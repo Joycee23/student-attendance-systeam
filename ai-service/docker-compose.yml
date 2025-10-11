@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  ai-service:
+    build: .
+    container_name: face-recognition-ai
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=False
+      - FLASK_HOST=0.0.0.0
+      - FLASK_PORT=5001
+      - BACKEND_URL=http://backend:5000
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
