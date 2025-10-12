@@ -6,14 +6,14 @@ const attendanceHistorySchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'AttendanceSession',
       required: [true, 'Session is required'],
-      index: true
+      unique: true
     },
 
     studentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'Student is required'],
-      index: true,
+      unique: true,
       validate: {
         validator: async function(value) {
           const User = mongoose.model('User');
@@ -31,14 +31,14 @@ const attendanceHistorySchema = new mongoose.Schema(
         message: '{VALUE} is not a valid status'
       },
       required: [true, 'Status is required'],
-      index: true
+      unique: true
     },
 
     checkInTime: {
       type: Date,
       required: [true, 'Check-in time is required'],
       default: Date.now,
-      index: true
+      unique: true
     },
 
     imageUrl: {
@@ -277,7 +277,7 @@ const attendanceHistorySchema = new mongoose.Schema(
     sessionDate: {
       type: Date,
       required: true,
-      index: true
+      unique: true
     },
 
     sessionStartTime: {

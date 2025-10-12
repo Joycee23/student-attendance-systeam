@@ -20,7 +20,7 @@ const notificationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      index: true
+      batchId: { type: String }
     }],
 
     type: {
@@ -43,13 +43,13 @@ const notificationSchema = new mongoose.Schema(
         message: '{VALUE} is not a valid notification type'
       },
       required: [true, 'Type is required'],
-      index: true
+      batchId: { type: String }
     },
 
     isRead: {
       type: Boolean,
       default: false,
-      index: true
+      batchId: { type: String }
     },
 
     // Thông tin bổ sung
@@ -59,7 +59,7 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       enum: ['low', 'normal', 'high', 'urgent'],
       default: 'normal',
-      index: true
+      batchId: { type: String }
     },
 
     // Icon/Badge
@@ -233,14 +233,14 @@ const notificationSchema = new mongoose.Schema(
     batchId: {
       type: String,
       default: null,
-      index: true
+      batchId: { type: String }
     },
 
     // Soft delete
     isDeleted: {
       type: Boolean,
       default: false,
-      index: true
+      batchId: { type: String }
     },
 
     deletedAt: {
