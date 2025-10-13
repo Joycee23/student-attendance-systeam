@@ -11,74 +11,353 @@ const {
   validateMongoId 
 } = require('../middlewares/validation');
 
-// @route   GET /api/classes
-// @desc    Get all classes
-// @access  Private
+/**
+ * @swagger
+ * tags:
+ *   name: Classes
+ *   description: API quản lý lớp học
+ */
+
+/**
+ * @swagger
+ * components:
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ *   schemas:
+ *     Class:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *           example: 652f0d94e12a5c28b4a321f1
+ *         name:
+ *           type: string
+ *           example: CNTT K23A
+ *         courseYear:
+ *           type: string
+ *           example: 2023
+ *         lecturerId:
+ *           type: string
+ *           example: 652f0d94e12a5c28b4a321e0
+ *         students:
+ *           type: array
+ *           items:
+ *             type: string
+ *       required:
+ *         - name
+ *         - courseYear
+ */
+
+/**
+ * @swagger
+ * /api/classes:
+ *   get:
+ *     summary: Lấy danh sách tất cả các lớp
+ *     tags: [Classes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           example: 10
+ *     responses:
+ *       200:
+ *         description: Danh sách lớp học
+ *       401:
+ *         description: Unauthorized
+ */
 router.get('/', protect, validatePagination, classController.getAllClasses);
 
-// @route   GET /api/classes/statistics
-// @desc    Get class statistics
-// @access  Private (Admin)
+/**
+ * @swagger
+ * /api/classes/statistics:
+ *   get:
+ *     summary: Lấy thống kê lớp học (chỉ Admin)
+ *     tags: [Classes]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dữ liệu thống kê
+ *       403:
+ *         description: Chỉ Admin được phép
+ */
 router.get('/statistics', protect, adminOnly, classController.getClassStatistics);
 
-// @route   GET /api/classes/lecturer/:lecturerId
-// @desc    Get classes by lecturer
-// @access  Private
+/**
+ * @swagger
+ * /api/classes/lecturer/{lecturerId}:
+ *   get:
+ *     summary: Lấy danh sách lớp theo giảng viên
+ *     tags: [Classes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: lecturerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID giảng viên
+ *     responses:
+ *       200:
+ *         description: Danh sách lớp của giảng viên
+ */
 router.get('/lecturer/:lecturerId', protect, validateMongoId, classController.getClassesByLecturer);
 
-// @route   GET /api/classes/course-year/:courseYear
-// @desc    Get classes by course year
-// @access  Private
+/**
+ * @swagger
+ * /api/classes/course-year/{courseYear}:
+ *   get:
+ *     summary: Lấy danh sách lớp theo năm học
+ *     tags: [Classes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseYear
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Danh sách lớp theo năm
+ */
 router.get('/course-year/:courseYear', protect, classController.getClassesByCourseYear);
 
-// @route   POST /api/classes
-// @desc    Create new class
-// @access  Private (Admin/Lecturer)
+/**
+ * @swagger
+ * /api/classes:
+ *   post:
+ *     summary: Tạo lớp mới (Admin hoặc Giảng viên)
+ *     tags: [Classes]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Class'
+ *     responses:
+ *       201:
+ *         description: Lớp được tạo thành công
+ */
 router.post('/', protect, lecturerOrAdmin, validateCreateClass, classController.createClass);
 
-// @route   GET /api/classes/:id
-// @desc    Get class by ID
-// @access  Private
+/**
+ * @swagger
+ * /api/classes/{id}:
+ *   get:
+ *     summary: Lấy thông tin chi tiết lớp học
+ *     tags: [Classes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Thông tin lớp học
+ */
 router.get('/:id', protect, validateMongoId, classController.getClassById);
 
-// @route   PUT /api/classes/:id
-// @desc    Update class
-// @access  Private (Admin/Lecturer who owns the class)
+/**
+ * @swagger
+ * /api/classes/{id}:
+ *   put:
+ *     summary: Cập nhật lớp học (Admin hoặc giảng viên sở hữu lớp)
+ *     tags: [Classes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Class'
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ */
 router.put('/:id', protect, lecturerOrAdmin, validateMongoId, validateUpdateClass, classController.updateClass);
 
-// @route   DELETE /api/classes/:id
-// @desc    Delete class
-// @access  Private (Admin)
+/**
+ * @swagger
+ * /api/classes/{id}:
+ *   delete:
+ *     summary: Xóa lớp học (Admin)
+ *     tags: [Classes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Xóa lớp thành công
+ */
 router.delete('/:id', protect, adminOnly, validateMongoId, classController.deleteClass);
 
-// @route   GET /api/classes/:id/students
-// @desc    Get students of class
-// @access  Private
+/**
+ * @swagger
+ * /api/classes/{id}/students:
+ *   get:
+ *     summary: Lấy danh sách sinh viên trong lớp
+ *     tags: [Classes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Danh sách sinh viên
+ */
 router.get('/:id/students', protect, validateMongoId, classController.getClassStudents);
 
-// @route   POST /api/classes/:id/students
-// @desc    Add student to class
-// @access  Private (Admin/Lecturer)
+/**
+ * @swagger
+ * /api/classes/{id}/students:
+ *   post:
+ *     summary: Thêm sinh viên vào lớp (Admin hoặc Giảng viên)
+ *     tags: [Classes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               studentId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Thêm sinh viên thành công
+ */
 router.post('/:id/students', protect, lecturerOrAdmin, validateMongoId, validateAddStudent, classController.addStudent);
 
-// @route   POST /api/classes/:id/students/bulk
-// @desc    Add multiple students to class
-// @access  Private (Admin/Lecturer)
+/**
+ * @swagger
+ * /api/classes/{id}/students/bulk:
+ *   post:
+ *     summary: Thêm nhiều sinh viên vào lớp
+ *     tags: [Classes]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               students:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: Thêm sinh viên thành công
+ */
 router.post('/:id/students/bulk', protect, lecturerOrAdmin, validateMongoId, classController.addMultipleStudents);
 
-// @route   DELETE /api/classes/:id/students/:studentId
-// @desc    Remove student from class
-// @access  Private (Admin/Lecturer)
+/**
+ * @swagger
+ * /api/classes/{id}/students/{studentId}:
+ *   delete:
+ *     summary: Xóa sinh viên khỏi lớp
+ *     tags: [Classes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Xóa sinh viên khỏi lớp thành công
+ */
 router.delete('/:id/students/:studentId', protect, lecturerOrAdmin, validateMongoId, classController.removeStudent);
 
-// @route   POST /api/classes/:id/courses
-// @desc    Add course to class
-// @access  Private (Admin/Lecturer)
+/**
+ * @swagger
+ * /api/classes/{id}/courses:
+ *   post:
+ *     summary: Gán khóa học cho lớp
+ *     tags: [Classes]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               courseId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Thêm khóa học thành công
+ */
 router.post('/:id/courses', protect, lecturerOrAdmin, validateMongoId, classController.addCourse);
 
-// @route   DELETE /api/classes/:id/courses/:courseId
-// @desc    Remove course from class
-// @access  Private (Admin/Lecturer)
+/**
+ * @swagger
+ * /api/classes/{id}/courses/{courseId}:
+ *   delete:
+ *     summary: Xóa khóa học khỏi lớp
+ *     tags: [Classes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Xóa khóa học thành công
+ */
 router.delete('/:id/courses/:courseId', protect, lecturerOrAdmin, validateMongoId, classController.removeCourse);
 
 module.exports = router;
