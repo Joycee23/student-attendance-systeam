@@ -62,7 +62,7 @@ app.get('/health', (req, res) => {
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   explorer: true,
   customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Attendance API Docs'
+  customSiteTitle: 'Attendance API Docs',
 }));
 
 // Swagger JSON
