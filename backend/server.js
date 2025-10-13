@@ -6,6 +6,10 @@ const rateLimit = require('express-rate-limit');
 const connectDB = require('./src/config/database');
 const errorHandler = require('./src/middlewares/errorHandler');
 
+// Thêm các module cần thiết cho Swagger
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./src/config/swagger'); // Giả định file config swagger nằm trong src/config
+
 const app = express();
 
 // ======================
@@ -53,6 +57,22 @@ app.get('/health', (req, res) => {
 });
 
 // ======================
+// 📚 API Documentation (Swagger)
+// ======================
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Attendance API Docs'
+}));
+
+// Swagger JSON
+app.get('/api/docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
+
+// ======================
 // 🧭 API Routes
 // ======================
 app.use('/api/auth', require('./src/routes/authRoutes'));
@@ -98,4 +118,5 @@ app.listen(PORT, () => {
   console.log(`🚀 Server đang chạy trên port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 URL: http://localhost:${PORT}`);
+  console.log(`📚 API Docs: http://localhost:${PORT}/api/docs`); // Thêm log cho đường dẫn docs
 });
