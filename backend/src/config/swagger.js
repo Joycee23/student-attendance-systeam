@@ -18,12 +18,12 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:5000',
-        description: 'Development server'
-      },
-      {
         url: 'http://studentsattendance.duckdns.org:5000',
         description: 'Production server'
+      },
+      {
+        url: 'http://localhost:5000',
+        description: 'Development server'
       }
     ],
     components: {
@@ -54,12 +54,12 @@ const options = {
           type: 'object',
           properties: {
             id: { type: 'string' },
-            name: { type: 'string', example: 'CNTT-K17A' },
+            name: { type: 'string', example: 'CNTT-K18A' },
             lecturerId: { type: 'string' },
             studentIds: { type: 'array', items: { type: 'string' } },
             courseIds: { type: 'array', items: { type: 'string' } },
             department: { type: 'string', example: 'CNTT' },
-            courseYear: { type: 'string', example: 'K17' }
+            courseYear: { type: 'string', example: 'K18' }
           }
         },
         Subject: {
@@ -67,7 +67,7 @@ const options = {
           properties: {
             id: { type: 'string' },
             code: { type: 'string', example: 'IT001' },
-            name: { type: 'string', example: 'Nhập môn lập trình' },
+            name: { type: 'string', example: 'Lập trình JavaScript' },
             credits: { type: 'number', example: 3 },
             lecturerIds: { type: 'array', items: { type: 'string' } }
           }

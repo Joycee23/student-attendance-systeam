@@ -55,27 +55,25 @@ app.get('/health', (req, res) => {
 // ======================
 // 📚 API Documentation (Swagger)
 // ======================
-app.use(
-  '/api/docs',
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerSpec, {
-    explorer: true,
-    swaggerOptions: {
-      tryItOutEnabled: true,
-      displayRequestDuration: true,
-      docExpansion: 'list',
-      filter: true,
-      showExtensions: true,
-      showCommonExtensions: true
-    },
-    customCss: `
-      .swagger-ui .topbar { display: none }
-      .swagger-ui .info .title { color: #3b4151 }
-    `,
-    customSiteTitle: 'Student Attendance System API',
-    customfavIcon: '/favicon.ico'
-  })
-);
+app.use('/api/docs', swaggerUi.serve);
+app.get('/api/docs', swaggerUi.setup(swaggerSpec, {
+  explorer: true,
+  swaggerOptions: {
+    url: '/api/docs.json',
+    tryItOutEnabled: true,
+    displayRequestDuration: true,
+    docExpansion: 'list',
+    filter: true,
+    showExtensions: true,
+    showCommonExtensions: true
+  },
+  customCss: `
+    .swagger-ui .topbar { display: none }
+    .swagger-ui .info .title { color: #3b4151 }
+    .swagger-ui .info .description { color: #666 }
+  `,
+  customSiteTitle: 'Student Attendance System API'
+}));
 
 // Swagger JSON endpoint
 app.get('/api/docs.json', (req, res) => {
