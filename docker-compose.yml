@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: attendance-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - AI_SERVICE_URL=http://ai-service:5001
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/uploads:/app/uploads
+    depends_on:
+      - ai-service
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: face-recognition-ai
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=False
+      - BACKEND_URL=http://backend:5000
+    env_file:
+      - ./ai-service/.env
+    volumes:
+      - ./ai-service/data:/app/data
+      - ./ai-service/uploads:/app/uploads
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
