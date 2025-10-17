@@ -55,30 +55,65 @@ app.get('/health', (req, res) => {
 // ======================
 // 📚 API Documentation (Swagger)
 // ======================
-app.use('/api/docs', swaggerUi.serve);
-app.get('/api/docs', swaggerUi.setup(swaggerSpec, {
-  explorer: true,
-  swaggerOptions: {
-    url: '/api/docs.json',
-    tryItOutEnabled: true,
-    displayRequestDuration: true,
-    docExpansion: 'list',
-    filter: true,
-    showExtensions: true,
-    showCommonExtensions: true
-  },
-  customCss: `
-    .swagger-ui .topbar { display: none }
-    .swagger-ui .info .title { color: #3b4151 }
-    .swagger-ui .info .description { color: #666 }
-  `,
-  customSiteTitle: 'Student Attendance System API'
-}));
+app.get('/api/docs', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Student Attendance System API</title>
+      <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.7.2/swagger-ui.css" />
+      <style>
+        body { margin: 0; padding: 0; }
+        #swagger-ui { height: 100vh; }
+        .swagger-ui .topbar { display: none; }
+        .swagger-ui .info .title { color: #3b4151; }
+      </style>
+    </head>
+    <body>
+      <div id="swagger-ui"></div>
+      <script src="https://unpkg.com/swagger-ui-dist@5.7.2/swagger-ui-bundle.js"></script>
+      <script>
+        window.onload = function() {
+          const ui = SwaggerUIBundle({
+            url: '/api/docs.json',
+            dom_id: '#swagger-ui',
+            deepLinking: true,
+            presets: [
+              SwaggerUIBundle.presets.apis,
+              SwaggerUIBundle.presets.standalone
+            ],
+            plugins: [
+              SwaggerUIBundle.plugins.DownloadUrl
+            ],
+            layout: "StandaloneLayout",
+            tryItOutEnabled: true,
+            displayRequestDuration: true,
+            docExpansion: 'list',
+            filter: true,
+            showExtensions: true,
+            showCommonExtensions: true
+          });
+        };
+      </script>
+    </body>
+    </html>
+  `);
+});
 
 // Swagger JSON endpoint
 app.get('/api/docs.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.json(swaggerSpec);
+  try {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.json(swaggerSpec);
+  } catch (error) {
+    console.error('Swagger JSON error:', error);
+    res.status(500).json({ error: 'Failed to load swagger spec' });
+  }
 });
 
 // ======================
