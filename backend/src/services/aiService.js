@@ -2,6 +2,7 @@ const axios = require('axios');
 const FormData = require('form-data');
 const Settings = require('../models/Settings');
 const User = require('../models/User');
+const FaceEncoding = require('../models/FaceEncoding');
 const cloudinaryService = require('./cloudinaryService');
 
 /**
@@ -83,45 +84,52 @@ class AIService {
         throw new Error('Student not found');
       }
 
-      // Upload image to Cloudinary first
-      const uploadResult = await cloudinaryService.uploadImage(imageBase64, {
-        folder: 'face-encodings',
-        public_id: `student_${student.studentCode}_${Date.now()}`
+      // Process face registration through AI service
+      const aiResult = await this.processFaceRegistration(imageBase64, {
+        studentCode: student.studentCode,
+        studentId: studentId
       });
 
-      // Send to AI service for encoding
-      const formData = new FormData();
-      formData.append('student_id', student.studentCode);
-      formData.append('student_name', student.fullName);
-      formData.append('image_url', uploadResult.secure_url);
-
-      const response = await axios.post(
-        `${this.serviceUrl}/api/face/register`,
-        formData,
-        {
-          headers: formData.getHeaders(),
-          timeout: this.timeout
-        }
-      );
-
-      if (response.data.success) {
-        // Update user
-        student.hasFaceRegistered = true;
-        student.avatarUrl = uploadResult.secure_url;
-        await student.save();
-
-        return {
-          success: true,
-          message: 'Face registered successfully',
-          studentId: student._id,
-          studentCode: student.studentCode,
-          imageUrl: uploadResult.secure_url,
-          encodingId: response.data.encoding_id,
-          confidence: response.data.confidence || 100
-        };
-      } else {
-        throw new Error(response.data.message || 'Face registration failed');
+      if (!aiResult.success) {
+        throw new Error(aiResult.message || 'Face processing failed');
       }
+
+      // Upload image to Cloudinary
+      const uploadResult = await cloudinaryService.uploadFaceEncoding(imageBase64, student.studentCode);
+
+      // Create FaceEncoding record
+      const faceEncoding = await FaceEncoding.create({
+        userId: studentId,
+        encodings: aiResult.encodings,
+        imageUrls: [uploadResult.secure_url],
+        cloudinaryIds: [uploadResult.public_id],
+        aiServiceVersion: aiResult.version || '1.0.0',
+        modelVersion: aiResult.modelVersion || 'face-recognition-v1',
+        qualityScore: aiResult.qualityScore,
+        processingMetadata: {
+          processingTime: aiResult.processingTime,
+          imageDimensions: aiResult.dimensions,
+          confidence: aiResult.confidence,
+          detectorUsed: aiResult.detector || 'face_recognition'
+        },
+        faceCount: aiResult.encodings.length
+      });
+
+      // Update user
+      student.hasFaceRegistered = true;
+      student.faceEncodingId = faceEncoding._id;
+      await student.save();
+
+      return {
+        success: true,
+        message: 'Face registered successfully',
+        studentId: student._id,
+        studentCode: student.studentCode,
+        faceEncodingId: faceEncoding._id,
+        imageUrl: uploadResult.secure_url,
+        encodingCount: aiResult.encodings.length,
+        qualityScore: aiResult.qualityScore
+      };
 
     } catch (error) {
       console.error('Register face error:', error);
@@ -270,18 +278,37 @@ class AIService {
     try {
       await this.init();
 
-      if (!this.enabled) {
-        return { success: true, message: 'AI service disabled' };
+      // Find and delete FaceEncoding record
+      const faceEncoding = await FaceEncoding.findOneAndDelete({
+        userId: (await User.findOne({ studentCode, role: 'student' }))?._id
+      });
+
+      if (faceEncoding) {
+        // Delete images from cloudinary
+        if (faceEncoding.cloudinaryIds && faceEncoding.cloudinaryIds.length > 0) {
+          await cloudinaryService.deleteMultiple(faceEncoding.cloudinaryIds);
+        }
       }
 
-      const response = await axios.delete(
-        `${this.serviceUrl}/api/face/delete/${studentCode}`,
-        { timeout: this.timeout }
-      );
+      // Also try to delete from AI service if enabled
+      if (this.enabled) {
+        try {
+          const response = await axios.delete(
+            `${this.serviceUrl}/api/face/delete/${studentCode}`,
+            { timeout: this.timeout }
+          );
+          return {
+            success: response.data.success,
+            message: response.data.message || 'Face deleted successfully'
+          };
+        } catch (aiError) {
+          console.warn('AI service delete failed, but local records deleted:', aiError.message);
+        }
+      }
 
       return {
-        success: response.data.success,
-        message: response.data.message || 'Face deleted successfully'
+        success: true,
+        message: 'Face encoding deleted from database successfully'
       };
 
     } catch (error) {
@@ -298,18 +325,27 @@ class AIService {
    */
   async getRegisteredCount() {
     try {
-      await this.init();
+      // Get count from local database
+      const localCount = await FaceEncoding.countDocuments({
+        isActive: true,
+        isVerified: true
+      });
 
-      if (!this.enabled) {
-        return 0;
+      // Fallback to AI service if enabled
+      await this.init();
+      if (this.enabled) {
+        try {
+          const response = await axios.get(
+            `${this.serviceUrl}/api/face/count`,
+            { timeout: 5000 }
+          );
+          return Math.max(localCount, response.data.count || 0);
+        } catch (aiError) {
+          console.warn('AI service count failed, using local count:', aiError.message);
+        }
       }
 
-      const response = await axios.get(
-        `${this.serviceUrl}/api/face/count`,
-        { timeout: 5000 }
-      );
-
-      return response.data.count || 0;
+      return localCount;
 
     } catch (error) {
       console.error('Get registered count error:', error);
@@ -323,18 +359,30 @@ class AIService {
    */
   async verifyEncoding(studentCode) {
     try {
-      await this.init();
+      // First check local database
+      const student = await User.findOne({ studentCode, role: 'student' });
+      if (!student) return false;
 
-      if (!this.enabled) {
-        return false;
+      const faceEncoding = await FaceEncoding.findByUser(student._id);
+      if (faceEncoding && faceEncoding.isActive && faceEncoding.isVerified) {
+        return true;
       }
 
-      const response = await axios.get(
-        `${this.serviceUrl}/api/face/verify/${studentCode}`,
-        { timeout: 5000 }
-      );
+      // Fallback to AI service if enabled
+      await this.init();
+      if (this.enabled) {
+        try {
+          const response = await axios.get(
+            `${this.serviceUrl}/api/face/verify/${studentCode}`,
+            { timeout: 5000 }
+          );
+          return response.data.exists === true;
+        } catch (aiError) {
+          console.warn('AI service verify failed:', aiError.message);
+        }
+      }
 
-      return response.data.exists === true;
+      return false;
 
     } catch (error) {
       console.error('Verify encoding error:', error);
@@ -374,6 +422,187 @@ class AIService {
         failed: errors.length
       }
     };
+  }
+
+  /**
+   * Process face registration and return encoding data
+   * @param {string} imageBase64 - Base64 encoded image
+   * @param {Object} metadata - Additional metadata
+   * @returns {Object} Processing result with encodings
+   */
+  async processFaceRegistration(imageBase64, metadata = {}) {
+    try {
+      await this.init();
+
+      if (!this.enabled) {
+        throw new Error('Face recognition is disabled');
+      }
+
+      if (!imageBase64) {
+        throw new Error('Image is required');
+      }
+
+      const startTime = Date.now();
+
+      // Upload image temporarily for processing
+      const uploadResult = await cloudinaryService.uploadImage(imageBase64, {
+        folder: 'temp-face-processing',
+        public_id: `process_${Date.now()}`
+      });
+
+      // Send to AI service for face detection and encoding
+      const formData = new FormData();
+      formData.append('image_url', uploadResult.secure_url);
+      formData.append('return_encodings', 'true');
+
+      if (metadata.studentCode) {
+        formData.append('student_id', metadata.studentCode);
+      }
+
+      const response = await axios.post(
+        `${this.serviceUrl}/api/face/process`,
+        formData,
+        {
+          headers: formData.getHeaders(),
+          timeout: this.timeout
+        }
+      );
+
+      const processingTime = Date.now() - startTime;
+
+      if (response.data.success && response.data.encodings) {
+        // Clean up temp image
+        await cloudinaryService.deleteImage(uploadResult.public_id);
+
+        return {
+          success: true,
+          encodings: response.data.encodings,
+          version: response.data.version || '1.0.0',
+          modelVersion: response.data.model_version || 'face-recognition-v1',
+          qualityScore: response.data.quality_score || response.data.confidence || 1,
+          processingTime,
+          dimensions: response.data.dimensions || null,
+          confidence: response.data.confidence || response.data.quality_score || 1,
+          detector: response.data.detector_used || 'face_recognition',
+          message: 'Face processing completed successfully'
+        };
+      } else {
+        // Clean up temp image
+        await cloudinaryService.deleteImage(uploadResult.public_id);
+        throw new Error(response.data.message || 'Face processing failed');
+      }
+
+    } catch (error) {
+      console.error('Process face registration error:', error);
+      return {
+        success: false,
+        message: `Face processing failed: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Get face encodings for recognition (compare against database)
+   * @param {string} imageBase64 - Image to recognize
+   * @returns {Object} Recognition result using local FaceEncoding data
+   */
+  async recognizeFaceLocal(imageBase64) {
+    try {
+      await this.init();
+
+      if (!imageBase64) {
+        throw new Error('Image is required');
+      }
+
+      const startTime = Date.now();
+
+      // Process the input image to get encodings
+      const processResult = await this.processFaceRegistration(imageBase64);
+
+      if (!processResult.success || !processResult.encodings || processResult.encodings.length === 0) {
+        return {
+          success: false,
+          recognized: false,
+          message: processResult.message || 'No face detected in image'
+        };
+      }
+
+      // Get all active face encodings from database
+      const faceEncodings = await FaceEncoding.findActive();
+
+      if (faceEncodings.length === 0) {
+        return {
+          success: false,
+          recognized: false,
+          message: 'No face encodings registered in database'
+        };
+      }
+
+      // Compare encodings (simplified distance calculation)
+      let bestMatch = null;
+      let bestDistance = Infinity;
+      let bestConfidence = 0;
+
+      for (const faceEncoding of faceEncodings) {
+        for (const knownEncoding of faceEncoding.encodings) {
+          for (const inputEncoding of processResult.encodings) {
+            // Calculate Euclidean distance
+            let distance = 0;
+            const length = Math.min(knownEncoding.length, inputEncoding.length);
+
+            for (let i = 0; i < length; i++) {
+              const diff = knownEncoding[i] - inputEncoding[i];
+              distance += diff * diff;
+            }
+            distance = Math.sqrt(distance);
+
+            // Convert distance to confidence (lower distance = higher confidence)
+            const confidence = Math.max(0, Math.min(1, 1 - (distance / 2))); // Assuming max distance ~2
+
+            if (confidence > bestConfidence && confidence >= this.minConfidence) {
+              bestMatch = faceEncoding;
+              bestDistance = distance;
+              bestConfidence = confidence;
+            }
+          }
+        }
+      }
+
+      const processingTime = Date.now() - startTime;
+
+      if (bestMatch && bestConfidence >= this.minConfidence) {
+        // Update usage statistics
+        await bestMatch.updateUsage();
+
+        return {
+          success: true,
+          recognized: true,
+          studentId: bestMatch.userId.toString(),
+          studentCode: (await User.findById(bestMatch.userId)).studentCode,
+          studentName: (await User.findById(bestMatch.userId)).fullName,
+          confidence: bestConfidence,
+          distance: bestDistance,
+          faceEncodingId: bestMatch._id,
+          processingTime,
+          message: 'Face recognized successfully'
+        };
+      } else {
+        return {
+          success: false,
+          recognized: false,
+          message: 'Face not recognized',
+          confidence: bestConfidence || 0
+        };
+      }
+
+    } catch (error) {
+      console.error('Local face recognition error:', error);
+      return {
+        success: false,
+        recognized: false,
+        message: `Face recognition failed: ${error.message}`
+      };
+    }
   }
 
   /**

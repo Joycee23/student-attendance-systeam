@@ -12,6 +12,7 @@ const statisticsRoutes = require('./statisticsRoutes');
 const settingsRoutes = require('./settingsRoutes');
 const reportRoutes = require('./reportRoutes');
 const securityRoutes = require('./securityRoutes');
+const faceEncodingRoutes = require('./faceEncodingRoutes');
 
 /**
  * @swagger
@@ -53,6 +54,7 @@ router.use('/statistics', statisticsRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/reports', reportRoutes);
 router.use('/security', securityRoutes);
+router.use('/face-encodings', faceEncodingRoutes);
 
 // API health check
 router.get('/health', (req, res) => {
@@ -82,6 +84,7 @@ router.get('/', (req, res) => {
       settings: '/api/settings',
       reports: '/api/reports',
       security: '/api/security',
+      faceEncodings: '/api/face-encodings',
     },
     documentation: '/api-docs', // Swagger UI
     health: '/api/health',
