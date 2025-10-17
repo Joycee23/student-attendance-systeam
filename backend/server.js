@@ -6,17 +6,11 @@ const rateLimit = require('express-rate-limit');
 const connectDB = require('./src/config/database');
 const errorHandler = require('./src/middlewares/errorHandler');
 
-// Thêm các module cần thiết cho Swagger
+// Swagger
 const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./src/config/swagger'); // Giả định file config swagger nằm trong src/config
+const swaggerSpec = require('./src/config/swagger');
 
 const app = express();
-
-// ======================
-// 🔥 GLOBAL ERROR LOGGING
-// ======================
-
-
 
 // ======================
 // 🟢 Kết nối MongoDB
@@ -27,16 +21,18 @@ connectDB();
 // 🛡️ Security Middleware
 // ======================
 app.use(helmet());
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+    credentials: true,
+  })
+);
 
 // 🚦 Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 phút
   max: 100,
-  message: 'Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau 15 phút'
+  message: 'Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau 15 phút',
 });
 app.use('/api/', limiter);
 
@@ -52,25 +48,31 @@ app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'success',
     message: 'Server is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
 // ======================
 // 📚 API Documentation (Swagger)
 // ======================
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  explorer: true,
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Attendance API Docs',
-}));
+app.use(
+  '/api/docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    swaggerOptions: {
+      url: '/api/docs.json', // ⚡ Quan trọng: giúp Swagger UI load đúng JSON
+    },
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Attendance API Docs',
+  })
+);
 
-// Swagger JSON
+// Swagger JSON endpoint
 app.get('/api/docs.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(swaggerSpec);
 });
-
 
 // ======================
 // 🧭 API Routes
@@ -92,7 +94,7 @@ app.use('/api/security', require('./src/routes/securityRoutes'));
 app.use((req, res, next) => {
   res.status(404).json({
     status: 'error',
-    message: 'Route không tồn tại'
+    message: 'Route không tồn tại',
   });
 });
 
@@ -106,7 +108,6 @@ app.use((err, req, res, next) => {
   console.error('👉 Message:', err.message);
   console.error('👉 Stack:\n', err.stack);
 
-  // Gọi middleware errorHandler gốc (nếu có logic riêng)
   errorHandler(err, req, res, next);
 });
 
@@ -114,9 +115,9 @@ app.use((err, req, res, next) => {
 // 🚀 Start Server
 // ======================
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server đang chạy trên port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 URL: http://localhost:${PORT}`);
-  console.log(`📚 API Docs: http://localhost:${PORT}/api/docs`); // Thêm log cho đường dẫn docs
+  console.log(`🔗 Base URL: http://0.0.0.0:${PORT}`);
+  console.log(`📚 Swagger Docs: http://0.0.0.0:${PORT}/api/docs`);
 });
