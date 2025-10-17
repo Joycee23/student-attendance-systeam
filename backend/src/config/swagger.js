@@ -22,7 +22,7 @@ const options = {
         description: 'Development server'
       },
       {
-        url: 'https://api.attendance.system',
+        url: 'http://studentsattendance.duckdns.org:5000',
         description: 'Production server'
       }
     ],

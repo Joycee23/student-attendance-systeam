@@ -58,10 +58,10 @@ app.get('/health', (req, res) => {
 app.use(
   '/api/docs',
   swaggerUi.serve,
-  swaggerUi.setup(swaggerSpec, {
+  swaggerUi.setup(null, {
     explorer: true,
     swaggerOptions: {
-      url: '/api/docs.json', // ⚡ Quan trọng: giúp Swagger UI load đúng JSON
+      url: '/api/docs.json'
     },
     customCss: '.swagger-ui .topbar { display: none }',
     customSiteTitle: 'Attendance API Docs',
