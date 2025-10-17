@@ -58,11 +58,8 @@ app.get('/health', (req, res) => {
 app.use(
   '/api/docs',
   swaggerUi.serve,
-  swaggerUi.setup(null, {
+  swaggerUi.setup(swaggerSpec, {
     explorer: true,
-    swaggerOptions: {
-      url: '/api/docs.json'
-    },
     customCss: '.swagger-ui .topbar { display: none }',
     customSiteTitle: 'Attendance API Docs',
   })
@@ -120,4 +117,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Base URL: http://0.0.0.0:${PORT}`);
   console.log(`📚 Swagger Docs: http://0.0.0.0:${PORT}/api/docs`);
+  console.log(`📚 Swagger JSON: http://0.0.0.0:${PORT}/api/docs.json`);
 });

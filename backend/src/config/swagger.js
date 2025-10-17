@@ -153,7 +153,7 @@ const options = {
       { name: 'Reports', description: 'Report generation' }
     ]
   },
-  apis: ['./src/routes/*.js', './src/controllers/*.js'] // Path to API docs
+  apis: ['./src/routes/*.js'] // Path to API docs
 };
 
 const swaggerSpec = swaggerJsdoc(options);
