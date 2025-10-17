@@ -60,15 +60,27 @@ app.use(
   swaggerUi.serve,
   swaggerUi.setup(swaggerSpec, {
     explorer: true,
-    customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'Attendance API Docs',
+    swaggerOptions: {
+      tryItOutEnabled: true,
+      displayRequestDuration: true,
+      docExpansion: 'list',
+      filter: true,
+      showExtensions: true,
+      showCommonExtensions: true
+    },
+    customCss: `
+      .swagger-ui .topbar { display: none }
+      .swagger-ui .info .title { color: #3b4151 }
+    `,
+    customSiteTitle: 'Student Attendance System API',
+    customfavIcon: '/favicon.ico'
   })
 );
 
 // Swagger JSON endpoint
 app.get('/api/docs.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
+  res.json(swaggerSpec);
 });
 
 // ======================
