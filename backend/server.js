@@ -53,67 +53,12 @@ app.get('/health', (req, res) => {
 });
 
 // ======================
-// 📚 API Documentation (Swagger)
+// 📚 Swagger Documentation
 // ======================
-app.get('/api/docs', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Student Attendance System API</title>
-      <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.7.2/swagger-ui.css" />
-      <style>
-        body { margin: 0; padding: 0; }
-        #swagger-ui { height: 100vh; }
-        .swagger-ui .topbar { display: none; }
-        .swagger-ui .info .title { color: #3b4151; }
-      </style>
-    </head>
-    <body>
-      <div id="swagger-ui"></div>
-      <script src="https://unpkg.com/swagger-ui-dist@5.7.2/swagger-ui-bundle.js"></script>
-      <script>
-        window.onload = function() {
-          const ui = SwaggerUIBundle({
-            url: '/api/docs.json',
-            dom_id: '#swagger-ui',
-            deepLinking: true,
-            presets: [
-              SwaggerUIBundle.presets.apis,
-              SwaggerUIBundle.presets.standalone
-            ],
-            plugins: [
-              SwaggerUIBundle.plugins.DownloadUrl
-            ],
-            layout: "StandaloneLayout",
-            tryItOutEnabled: true,
-            displayRequestDuration: true,
-            docExpansion: 'list',
-            filter: true,
-            showExtensions: true,
-            showCommonExtensions: true
-          });
-        };
-      </script>
-    </body>
-    </html>
-  `);
-});
-
-// Swagger JSON endpoint
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/api/docs.json', (req, res) => {
-  try {
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.json(swaggerSpec);
-  } catch (error) {
-    console.error('Swagger JSON error:', error);
-    res.status(500).json({ error: 'Failed to load swagger spec' });
-  }
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
 });
 
 // ======================
@@ -161,6 +106,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server đang chạy trên port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Base URL: http://0.0.0.0:${PORT}`);
-  console.log(`📚 Swagger Docs: http://0.0.0.0:${PORT}/api/docs`);
-  console.log(`📚 Swagger JSON: http://0.0.0.0:${PORT}/api/docs.json`);
+  console.log(`📚 Swagger Docs: https://studentsattendance.duckdns.org/api/docs`);
 });

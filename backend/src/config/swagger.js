@@ -1,36 +1,39 @@
 const swaggerJsdoc = require('swagger-jsdoc');
 
-// Minimal swagger config to avoid issues
 const options = {
   definition: {
     openapi: '3.0.0',
     info: {
       title: 'Student Attendance System API',
       version: '1.0.0',
-      description: 'API documentation for Student Attendance Management System with Face Recognition'
+      description: 'API documentation for Student Attendance Management System with Face Recognition',
     },
     servers: [
       {
-        url: 'http://studentsattendance.duckdns.org:5000',
-        description: 'Production server'
-      }
+        url: 'https://studentsattendance.duckdns.org',
+        description: 'Production server',
+      },
+      {
+        url: 'http://localhost:5000',
+        description: 'Local development server',
+      },
     ],
     security: [
       {
-        bearerAuth: []
-      }
+        bearerAuth: [],
+      },
     ],
     components: {
       securitySchemes: {
         bearerAuth: {
           type: 'http',
           scheme: 'bearer',
-          bearerFormat: 'JWT'
-        }
-      }
-    }
+          bearerFormat: 'JWT',
+        },
+      },
+    },
   },
-  apis: ['./src/routes/*.js']
+  apis: ['./src/routes/*.js'], // quét tất cả route có swagger comment
 };
 
 const swaggerSpec = swaggerJsdoc(options);
