@@ -596,37 +596,7 @@ def create_app():
         return recognized_faces
 
     # ---------- Camera stream ----------
-    def gen_frames():
-        camera = cv2.VideoCapture(0)
-        if not camera.isOpened():
-            print("❌ Cannot open camera")
-            return
-
-        while True:
-            success, frame = camera.read()
-            if not success:
-                continue
-
-            frame = cv2.resize(frame, (640, 480))
-            try:
-                faces = recognize_face(frame)
-            except Exception as e:
-                print(f"⚠️ Face recognition error: {e}")
-                faces = []
-
-            # Vẽ khung & tên
-            for name, (top, right, bottom, left) in faces:
-                color = (0, 255, 0) if name != "Unknown" else (0, 0, 255)
-                cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
-                cv2.putText(frame, name, (left, top - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
-
-            # Encode lại ảnh
-            ret, buffer = cv2.imencode('.jpg', frame)
-            frame_bytes = buffer.tobytes()
-            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-
-        camera.release()
+    
 
     @app.route('/video_feed')
     def video_feed():
