@@ -2,15 +2,57 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Camera Feed</title>
+    <title>Student Attendance</title>
     <style>
-        body { text-align: center; font-family: Arial, sans-serif; }
-        h1 { color: #333; }
-        img { border: 2px solid #333; margin-top: 20px; }
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        #video-container {
+            display: inline-block;
+            border: 2px solid #333;
+            background-color: #000;
+        }
+        #recognized-name {
+            margin-top: 15px;
+            font-size: 24px;
+            color: green;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
-    <h1>Live Camera Feed</h1>
-    <img id="camera" src="{{ url_for('video_feed') }}" width="640" height="480">
+    <h1>Student Attendance System</h1>
+    
+    <div id="video-container">
+        <img id="video-feed" src="/video_feed" width="640" height="480">
+    </div>
+    
+    <div id="recognized-name">Waiting for face recognition...</div>
+    
+    <script>
+        async function updateRecognizedName() {
+            try {
+                const response = await fetch('/api/face/recognized');
+                const data = await response.json();
+                const nameEl = document.getElementById('recognized-name');
+                if (data.name && data.name !== "Unknown") {
+                    nameEl.textContent = `Recognized: ${data.name}`;
+                } else {
+                    nameEl.textContent = `Waiting for face recognition...`;
+                }
+            } catch (err) {
+                console.error("Error fetching recognized face:", err);
+            }
+        }
+
+        // Cập nhật tên nhận diện mỗi 1 giây
+        setInterval(updateRecognizedName, 1000);
+    </script>
 </body>
 </html>
