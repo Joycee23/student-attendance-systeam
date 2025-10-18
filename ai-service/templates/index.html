@@ -1,8 +1,21 @@
+{# Phần HTML cũ đã comment, giữ để tham khảo #}
+{#
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    ...
+</head>
+<body>
+    ...
+</body>
+</html>
+#}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Face Recognition Camera</title>
+    <title>Realtime Face Recognition</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -31,6 +44,7 @@
         #video-stream {
             width: 640px;
             height: 480px;
+            display: block;
         }
 
         #recognized-list {
@@ -62,7 +76,7 @@
     </style>
 </head>
 <body>
-    <h1>Face Recognition Camera</h1>
+    <h1>Realtime Face Recognition</h1>
     <div id="container">
         <div id="camera-container">
             <img id="video-stream" src="{{ url_for('video_feed') }}" alt="Camera Stream">
@@ -74,18 +88,15 @@
     </div>
 
     <script>
-        // Danh sách tạm thời hiển thị (mô phỏng)
         const studentsDiv = document.getElementById('students');
         let recognizedStudents = {};
 
-        // Lấy dữ liệu sinh viên nhận diện từ server định kỳ
         async function fetchRecognized() {
             try {
-                const res = await fetch('/api/face/recognized'); // API trả về danh sách hiện tại
+                const res = await fetch('/api/face/recognized');
                 if (!res.ok) return;
 
                 const data = await res.json();
-                // Giả sử data = [{id, name, class}]
                 recognizedStudents = {};
                 if (data.data) {
                     data.data.forEach(s => {
