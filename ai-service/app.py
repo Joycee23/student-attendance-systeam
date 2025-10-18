@@ -491,7 +491,6 @@
 #     print(f"🔌 Port: {Config.FLASK_PORT}")
 #     print("=" * 60)
 #     app.run(host=Config.FLASK_HOST, port=Config.FLASK_PORT, debug=Config.FLASK_DEBUG)
-
 import os
 import cv2
 import pickle
@@ -502,8 +501,9 @@ from flask_cors import CORS
 from config import Config
 from api import api_bp
 import requests
+import platform
 
-# ====== Load encodings sinh viên ======
+# ---------------- Load encodings sinh viên ----------------
 encodings_path = os.path.join(Config.BASE_DIR, 'data', 'encodings')
 known_face_encodings = []
 known_face_names = []
@@ -513,15 +513,12 @@ for file in os.listdir(encodings_path):
         student_id = os.path.splitext(file)[0]
         with open(os.path.join(encodings_path, file), 'rb') as f:
             data = pickle.load(f)
-
-        # Trường hợp file lưu list encodings
         if isinstance(data, dict) and "encodings" in data:
             enc_list = data["encodings"]
         elif isinstance(data, list):
             enc_list = data
         else:
             enc_list = [data]
-
         for enc in enc_list:
             if isinstance(enc, np.ndarray):
                 known_face_encodings.append(enc)
@@ -529,19 +526,26 @@ for file in os.listdir(encodings_path):
 
 print(f"✅ Loaded {len(known_face_encodings)} encodings from {len(set(known_face_names))} students.")
 
+# ---------------- Thông tin sinh viên ----------------
+students_info = {
+    "sv001": {"name": "Nguyen Van A", "class": "CNTT1"},
+    "sv002": {"name": "Tran Thi B", "class": "CNTT2"},
+    "sv003": {"name": "Le Van C", "class": "CNTT1"},
+    # ... thêm sinh viên khác
+}
 
-def mark_attendance(student_name):
-    """Gọi API để lưu điểm danh"""
+# ---------------- Attendance ----------------
+def mark_attendance(student_id):
     try:
-        resp = requests.post(f"{Config.API_URL}/attendance/mark", json={"name": student_name})
+        resp = requests.post(f"{Config.API_URL}/attendance/mark", json={"name": student_id})
         if resp.status_code == 200:
-            print(f"✅ Attendance marked: {student_name}")
+            print(f"✅ Attendance marked: {student_id}")
         else:
             print(f"⚠️ API returned {resp.status_code}: {resp.text}")
     except Exception as e:
         print(f"⚠️ Error calling attendance API: {e}")
 
-
+# ---------------- Flask app ----------------
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -549,7 +553,6 @@ def create_app():
     CORS(app, resources={r"/api/*": {"origins": Config.ALLOWED_ORIGINS}})
     app.register_blueprint(api_bp)
 
-    # ---------- Routes ----------
     @app.route('/')
     def index():
         return jsonify({
@@ -562,41 +565,89 @@ def create_app():
     def camera_page():
         return render_template('index.html')
 
-    # ---------- Face recognition ----------
-    def recognize_face(frame):
+    # ---------- Safe face recognition ----------
+    def safe_recognize_face(frame):
         if frame is None or frame.size == 0:
             return []
 
-        # Chuyển về RGB chuẩn
-        if len(frame.shape) == 2:
+        frame = np.asarray(frame, dtype=np.uint8)
+
+        if frame.ndim not in [2, 3] or (frame.ndim == 3 and frame.shape[2] not in [1,3,4]):
+            print(f"⚠️ Skipping invalid frame: shape={frame.shape}, dtype={frame.dtype}")
+            return []
+
+        if frame.ndim == 2 or frame.shape[2] == 1:
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
         elif frame.shape[2] == 4:
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
-            rgb_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_BGR2RGB)
+            rgb_frame = cv2.cvtColor(frame[:, :, :3], cv2.COLOR_BGRA2RGB)
         else:
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # Nhận diện khuôn mặt
-        face_locations = face_recognition.face_locations(rgb_frame)
-        face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+        try:
+            face_locations = face_recognition.face_locations(rgb_frame)
+            face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+        except Exception as e:
+            print(f"⚠️ Face recognition failed: {e}")
+            return []
 
         recognized_faces = []
-
         for encoding, (top, right, bottom, left) in zip(face_encodings, face_locations):
             matches = face_recognition.compare_faces(known_face_encodings, encoding, tolerance=0.45)
-            name = "Unknown"
-
+            student_id = "Unknown"
             if True in matches:
                 match_index = matches.index(True)
-                name = known_face_names[match_index]
-                mark_attendance(name)
+                student_id = known_face_names[match_index]
+                mark_attendance(student_id)
 
-            recognized_faces.append((name, (top, right, bottom, left)))
+            info = students_info.get(student_id, {"name": student_id, "class": "Unknown"})
+            recognized_faces.append({
+                "id": student_id,
+                "name": info["name"],
+                "class": info["class"],
+                "box": (top, right, bottom, left)
+            })
 
         return recognized_faces
 
     # ---------- Camera stream ----------
-    
+    def gen_frames():
+        os_type = platform.system()
+        if os_type == "Windows":
+            camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        else:
+            camera = cv2.VideoCapture(0)
+
+        if not camera.isOpened():
+            raise RuntimeError("❌ Cannot open camera")
+
+        try:
+            while True:
+                success, frame = camera.read()
+                if not success or frame is None or frame.size == 0:
+                    continue
+
+                frame = cv2.resize(frame, (640, 480))
+                faces = safe_recognize_face(frame)
+
+                for f in faces:
+                    top, right, bottom, left = f["box"]
+                    color = (0,255,0) if f["id"] != "Unknown" else (0,0,255)
+                    cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
+                    text = f'{f["id"]} | {f["name"]} | {f["class"]}'
+                    cv2.putText(frame, text, (left, top-10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
+                ret, buffer = cv2.imencode('.jpg', frame)
+                if not ret:
+                    continue
+                frame_bytes = buffer.tobytes()
+                yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+        except Exception as e:
+            print(f"❌ Camera stream error: {e}")
+        finally:
+            camera.release()
+            print("✅ Camera released safely")
 
     @app.route('/video_feed')
     def video_feed():
@@ -605,13 +656,13 @@ def create_app():
 
     return app
 
-
+# ---------- Run ----------
 if __name__ == '__main__':
     app = create_app()
-    print("=" * 60)
+    print("="*60)
     print("🚀 Face Recognition AI Service")
-    print("=" * 60)
+    print("="*60)
     print(f"📍 Host: {Config.FLASK_HOST}")
     print(f"🔌 Port: {Config.FLASK_PORT}")
-    print("=" * 60)
+    print("="*60)
     app.run(host=Config.FLASK_HOST, port=Config.FLASK_PORT, debug=Config.FLASK_DEBUG)
