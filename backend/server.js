@@ -26,7 +26,7 @@ app.use(
     origin: [
       "http://localhost:3000", // Development frontend
       "http://localhost:3003", // Current port
-      "https://studentsattendance.duckdns.org", // Production
+      "https://attendacestystem.duckdns.org", // Production
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -34,7 +34,18 @@ app.use(
   })
 );
 
-// 🚦 Rate limiting
+// 🔥 [DEBUG] Log all requests
+app.use((req, res, next) => {
+  console.log(`🚀🚀🚀 [REQUEST] ${req.method} ${req.originalUrl} 🚀🚀🚀`);
+  console.log(`📋 Headers:`, JSON.stringify(req.headers, null, 2));
+  if (req.method === "POST" || req.method === "PUT") {
+    console.log(`📦 Body:`, JSON.stringify(req.body, null, 2));
+  }
+  console.log(`🌐 IP: ${req.ip}`);
+  next();
+});
+
+//  Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 phút
   max: 100,
@@ -112,7 +123,5 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server đang chạy trên port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || "development"}`);
   console.log(`🔗 Base URL: http://0.0.0.0:${PORT}`);
-  console.log(
-    `📚 Swagger Docs: https://studentsattendance.duckdns.org/api/docs`
-  );
+  console.log(`📚 Swagger Docs: https://attendacestystem.duckdns.org/api/docs`);
 });

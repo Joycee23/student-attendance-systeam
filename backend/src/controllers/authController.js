@@ -1,24 +1,20 @@
-const User = require('../models/User');
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const { successResponse, errorResponse } = require('../utils/apiResponse');
+const User = require("../models/User");
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const { successResponse, errorResponse } = require("../utils/apiResponse");
 
 // Generate JWT Token
 const generateToken = (userId, role) => {
-  return jwt.sign(
-    { userId, role },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE || '7d' }
-  );
+  return jwt.sign({ userId, role }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || "7d",
+  });
 };
 
 // Generate Refresh Token
 const generateRefreshToken = (userId) => {
-  return jwt.sign(
-    { userId },
-    process.env.JWT_REFRESH_SECRET,
-    { expiresIn: '30d' }
-  );
+  return jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET, {
+    expiresIn: "30d",
+  });
 };
 
 // @desc    Register new user
@@ -26,6 +22,15 @@ const generateRefreshToken = (userId) => {
 // @access  Public (hoặc Admin only)
 exports.register = async (req, res) => {
   try {
+    console.log(
+      "🔥 [REGISTER] Incoming request body:",
+      JSON.stringify(req.body, null, 2)
+    );
+    console.log(
+      "🔥 [REGISTER] Request headers:",
+      JSON.stringify(req.headers, null, 2)
+    );
+
     const {
       fullName,
       email,
@@ -35,64 +40,88 @@ exports.register = async (req, res) => {
       lecturerCode,
       phoneNumber,
       dateOfBirth,
-      address
+      address,
     } = req.body;
 
     // Kiểm tra email đã tồn tại
+    console.log("🔥 [REGISTER] Checking if email exists:", email);
     const existingUser = await User.findByEmail(email);
+    console.log(
+      "🔥 [REGISTER] Existing user found:",
+      existingUser ? "YES" : "NO"
+    );
     if (existingUser) {
-      return errorResponse(res, 'Email already exists', 400);
+      console.log("🔥 [REGISTER] Email already exists, returning error");
+      return errorResponse(res, "Email already exists", 400);
     }
 
     // Kiểm tra student code đã tồn tại
-    if (role === 'student' && studentCode) {
+    if (role === "student" && studentCode) {
       const existingStudent = await User.findStudentByCode(studentCode);
       if (existingStudent) {
-        return errorResponse(res, 'Student code already exists', 400);
+        return errorResponse(res, "Student code already exists", 400);
       }
     }
 
     // Kiểm tra lecturer code đã tồn tại
-    if (role === 'lecturer' && lecturerCode) {
+    if (role === "lecturer" && lecturerCode) {
       const existingLecturer = await User.findLecturerByCode(lecturerCode);
       if (existingLecturer) {
-        return errorResponse(res, 'Lecturer code already exists', 400);
+        return errorResponse(res, "Lecturer code already exists", 400);
       }
     }
 
     // Tạo user mới
+    console.log("🔥 [REGISTER] Creating user with data:", {
+      fullName,
+      email,
+      role: role || "student",
+      studentCode: role === "student" ? studentCode : undefined,
+      lecturerCode: role === "lecturer" ? lecturerCode : undefined,
+      phoneNumber,
+      dateOfBirth,
+      address,
+    });
+
     const user = await User.create({
       fullName,
       email,
       password,
-      role: role || 'student',
-      studentCode: role === 'student' ? studentCode : undefined,
-      lecturerCode: role === 'lecturer' ? lecturerCode : undefined,
+      role: role || "student",
+      studentCode: role === "student" ? studentCode : undefined,
+      lecturerCode: role === "lecturer" ? lecturerCode : undefined,
       phoneNumber,
       dateOfBirth,
-      address
+      address,
     });
+
+    console.log("🔥 [REGISTER] User created successfully:", user._id);
 
     // Generate token
     const token = generateToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
-    return successResponse(res, {
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        studentCode: user.studentCode,
-        lecturerCode: user.lecturerCode,
-        avatarUrl: user.avatarUrl
+    return successResponse(
+      res,
+      {
+        user: {
+          id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role,
+          studentCode: user.studentCode,
+          lecturerCode: user.lecturerCode,
+          avatarUrl: user.avatarUrl,
+        },
+        token,
+        refreshToken,
       },
-      token,
-      refreshToken
-    }, 'User registered successfully', 201);
-
+      "User registered successfully",
+      201
+    );
   } catch (error) {
-    console.error('Register error:', error);
+    console.error("🔥 [REGISTER] ERROR:", error);
+    console.error("🔥 [REGISTER] Stack:", error.stack);
     return errorResponse(res, error.message, 500);
   }
 };
@@ -106,39 +135,39 @@ exports.login = async (req, res) => {
 
     // Validate input
     if (!email || !password) {
-      return errorResponse(res, 'Please provide email and password', 400);
+      return errorResponse(res, "Please provide email and password", 400);
     }
 
     // Find user (include password)
-    const user = await User.findOne({ email }).select('+password');
-    
+    const user = await User.findOne({ email }).select("+password");
+
     if (!user) {
-      return errorResponse(res, 'Invalid credentials', 401);
+      return errorResponse(res, "Invalid credentials", 401);
     }
 
     // Check if account is locked
     if (user.isLocked) {
       const lockTime = Math.round((user.lockUntil - Date.now()) / 1000 / 60);
       return errorResponse(
-        res, 
-        `Account is locked. Try again in ${lockTime} minutes`, 
+        res,
+        `Account is locked. Try again in ${lockTime} minutes`,
         423
       );
     }
 
     // Check if account is active
     if (!user.isActive) {
-      return errorResponse(res, 'Account is deactivated', 403);
+      return errorResponse(res, "Account is deactivated", 403);
     }
 
     // Verify password
     const isPasswordValid = await user.comparePassword(password);
-    
+
     if (!isPasswordValid) {
       // Increase login attempts
       await user.incLoginAttempts();
-      
-      return errorResponse(res, 'Invalid credentials', 401);
+
+      return errorResponse(res, "Invalid credentials", 401);
     }
 
     // Reset login attempts
@@ -148,23 +177,26 @@ exports.login = async (req, res) => {
     const token = generateToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
-    return successResponse(res, {
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        studentCode: user.studentCode,
-        lecturerCode: user.lecturerCode,
-        avatarUrl: user.avatarUrl,
-        hasFaceRegistered: user.hasFaceRegistered
+    return successResponse(
+      res,
+      {
+        user: {
+          id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role,
+          studentCode: user.studentCode,
+          lecturerCode: user.lecturerCode,
+          avatarUrl: user.avatarUrl,
+          hasFaceRegistered: user.hasFaceRegistered,
+        },
+        token,
+        refreshToken,
       },
-      token,
-      refreshToken
-    }, 'Login successful');
-
+      "Login successful"
+    );
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     return errorResponse(res, error.message, 500);
   }
 };
@@ -176,11 +208,10 @@ exports.logout = async (req, res) => {
   try {
     // TODO: Implement token blacklist if needed
     // For now, just return success (client will remove token)
-    
-    return successResponse(res, null, 'Logout successful');
 
+    return successResponse(res, null, "Logout successful");
   } catch (error) {
-    console.error('Logout error:', error);
+    console.error("Logout error:", error);
     return errorResponse(res, error.message, 500);
   }
 };
@@ -191,17 +222,16 @@ exports.logout = async (req, res) => {
 exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
-      .populate('classId', 'name')
-      .populate('courseIds', 'code name');
+      .populate("classId", "name")
+      .populate("courseIds", "code name");
 
     if (!user) {
-      return errorResponse(res, 'User not found', 404);
+      return errorResponse(res, "User not found", 404);
     }
 
-    return successResponse(res, { user }, 'User retrieved successfully');
-
+    return successResponse(res, { user }, "User retrieved successfully");
   } catch (error) {
-    console.error('GetMe error:', error);
+    console.error("GetMe error:", error);
     return errorResponse(res, error.message, 500);
   }
 };
@@ -216,7 +246,7 @@ exports.updateProfile = async (req, res) => {
     const user = await User.findById(req.user.id);
 
     if (!user) {
-      return errorResponse(res, 'User not found', 404);
+      return errorResponse(res, "User not found", 404);
     }
 
     // Update fields
@@ -228,10 +258,9 @@ exports.updateProfile = async (req, res) => {
 
     await user.save();
 
-    return successResponse(res, { user }, 'Profile updated successfully');
-
+    return successResponse(res, { user }, "Profile updated successfully");
   } catch (error) {
-    console.error('Update profile error:', error);
+    console.error("Update profile error:", error);
     return errorResponse(res, error.message, 500);
   }
 };
@@ -244,30 +273,29 @@ exports.changePassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      return errorResponse(res, 'Please provide current and new password', 400);
+      return errorResponse(res, "Please provide current and new password", 400);
     }
 
-    const user = await User.findById(req.user.id).select('+password');
+    const user = await User.findById(req.user.id).select("+password");
 
     if (!user) {
-      return errorResponse(res, 'User not found', 404);
+      return errorResponse(res, "User not found", 404);
     }
 
     // Verify current password
     const isPasswordValid = await user.comparePassword(currentPassword);
-    
+
     if (!isPasswordValid) {
-      return errorResponse(res, 'Current password is incorrect', 401);
+      return errorResponse(res, "Current password is incorrect", 401);
     }
 
     // Update password
     user.password = newPassword;
     await user.save();
 
-    return successResponse(res, null, 'Password changed successfully');
-
+    return successResponse(res, null, "Password changed successfully");
   } catch (error) {
-    console.error('Change password error:', error);
+    console.error("Change password error:", error);
     return errorResponse(res, error.message, 500);
   }
 };
@@ -282,7 +310,7 @@ exports.forgotPassword = async (req, res) => {
     const user = await User.findByEmail(email);
 
     if (!user) {
-      return errorResponse(res, 'User not found', 404);
+      return errorResponse(res, "User not found", 404);
     }
 
     // Generate reset token
@@ -291,14 +319,17 @@ exports.forgotPassword = async (req, res) => {
 
     // TODO: Send email with reset token
     // For now, return token in response (NOT RECOMMENDED FOR PRODUCTION)
-    
-    return successResponse(res, { 
-      resetToken,
-      message: 'Password reset token generated. Check your email.'
-    }, 'Reset token sent');
 
+    return successResponse(
+      res,
+      {
+        resetToken,
+        message: "Password reset token generated. Check your email.",
+      },
+      "Reset token sent"
+    );
   } catch (error) {
-    console.error('Forgot password error:', error);
+    console.error("Forgot password error:", error);
     return errorResponse(res, error.message, 500);
   }
 };
@@ -312,23 +343,20 @@ exports.resetPassword = async (req, res) => {
     const { newPassword } = req.body;
 
     if (!newPassword) {
-      return errorResponse(res, 'Please provide new password', 400);
+      return errorResponse(res, "Please provide new password", 400);
     }
 
     // Hash token
-    const hashedToken = crypto
-      .createHash('sha256')
-      .update(token)
-      .digest('hex');
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     // Find user with valid token
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
-      resetPasswordExpire: { $gt: Date.now() }
-    }).select('+resetPasswordToken +resetPasswordExpire');
+      resetPasswordExpire: { $gt: Date.now() },
+    }).select("+resetPasswordToken +resetPasswordExpire");
 
     if (!user) {
-      return errorResponse(res, 'Invalid or expired token', 400);
+      return errorResponse(res, "Invalid or expired token", 400);
     }
 
     // Update password
@@ -337,10 +365,9 @@ exports.resetPassword = async (req, res) => {
     user.resetPasswordExpire = undefined;
     await user.save();
 
-    return successResponse(res, null, 'Password reset successfully');
-
+    return successResponse(res, null, "Password reset successfully");
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error("Reset password error:", error);
     return errorResponse(res, error.message, 500);
   }
 };
@@ -353,7 +380,7 @@ exports.refreshToken = async (req, res) => {
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
-      return errorResponse(res, 'Refresh token is required', 400);
+      return errorResponse(res, "Refresh token is required", 400);
     }
 
     // Verify refresh token
@@ -362,21 +389,24 @@ exports.refreshToken = async (req, res) => {
     const user = await User.findById(decoded.userId);
 
     if (!user || !user.isActive) {
-      return errorResponse(res, 'Invalid refresh token', 401);
+      return errorResponse(res, "Invalid refresh token", 401);
     }
 
     // Generate new tokens
     const newToken = generateToken(user._id, user.role);
     const newRefreshToken = generateRefreshToken(user._id);
 
-    return successResponse(res, {
-      token: newToken,
-      refreshToken: newRefreshToken
-    }, 'Token refreshed successfully');
-
+    return successResponse(
+      res,
+      {
+        token: newToken,
+        refreshToken: newRefreshToken,
+      },
+      "Token refreshed successfully"
+    );
   } catch (error) {
-    console.error('Refresh token error:', error);
-    return errorResponse(res, 'Invalid or expired refresh token', 401);
+    console.error("Refresh token error:", error);
+    return errorResponse(res, "Invalid or expired refresh token", 401);
   }
 };
 
@@ -389,11 +419,10 @@ exports.verifyEmail = async (req, res) => {
 
     // TODO: Implement email verification logic
     // Hash token and find user
-    
-    return successResponse(res, null, 'Email verified successfully');
 
+    return successResponse(res, null, "Email verified successfully");
   } catch (error) {
-    console.error('Verify email error:', error);
+    console.error("Verify email error:", error);
     return errorResponse(res, error.message, 500);
   }
 };
@@ -406,19 +435,18 @@ exports.resendVerification = async (req, res) => {
     const user = await User.findById(req.user.id);
 
     if (!user) {
-      return errorResponse(res, 'User not found', 404);
+      return errorResponse(res, "User not found", 404);
     }
 
     if (user.isEmailVerified) {
-      return errorResponse(res, 'Email already verified', 400);
+      return errorResponse(res, "Email already verified", 400);
     }
 
     // TODO: Send verification email
-    
-    return successResponse(res, null, 'Verification email sent');
 
+    return successResponse(res, null, "Verification email sent");
   } catch (error) {
-    console.error('Resend verification error:', error);
+    console.error("Resend verification error:", error);
     return errorResponse(res, error.message, 500);
   }
 };
