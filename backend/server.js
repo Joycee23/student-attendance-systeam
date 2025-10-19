@@ -3,6 +3,8 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const fs = require("fs");
+const path = require("path");
 const connectDB = require("./src/config/database");
 const errorHandler = require("./src/middlewares/errorHandler");
 
@@ -25,8 +27,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000", // Development frontend
-      "http://localhost:3003", // Current port
-      "https://attendacestystem.duckdns.org", // Production
+      "http://localhost:3003", // Another local port
+      "https://attendacestystem.duckdns.org", // Production domain
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -34,18 +36,35 @@ app.use(
   })
 );
 
-// 🔥 [DEBUG] Log all requests
+// ======================
+// 🪵 Logging Middleware (Ghi ra file + console)
+// ======================
+const logDir = path.join(__dirname, "logs");
+if (!fs.existsSync(logDir)) fs.mkdirSync(logDir);
+const logFile = path.join(logDir, "server.log");
+
+function writeLog(message) {
+  const timestamp = new Date().toISOString();
+  const line = `[${timestamp}] ${message}\n`;
+  fs.appendFileSync(logFile, line);
+  console.log(message);
+}
+
 app.use((req, res, next) => {
-  console.log(`🚀🚀🚀 [REQUEST] ${req.method} ${req.originalUrl} 🚀🚀🚀`);
-  console.log(`📋 Headers:`, JSON.stringify(req.headers, null, 2));
-  if (req.method === "POST" || req.method === "PUT") {
-    console.log(`📦 Body:`, JSON.stringify(req.body, null, 2));
+  writeLog(`🚀 [REQUEST] ${req.method} ${req.originalUrl}`);
+  writeLog(`📋 Headers: ${JSON.stringify(req.headers, null, 2)}`);
+
+  if (["POST", "PUT", "PATCH"].includes(req.method)) {
+    writeLog(`📦 Body: ${JSON.stringify(req.body, null, 2)}`);
   }
-  console.log(`🌐 IP: ${req.ip}`);
+
+  writeLog(`🌐 IP: ${req.ip}`);
   next();
 });
 
-//  Rate limiting
+// ======================
+// ⚙️ Rate limiting
+// ======================
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 phút
   max: 100,
@@ -53,14 +72,20 @@ const limiter = rateLimit({
 });
 app.use("/api/", limiter);
 
-// 📦 Body Parser
+// ======================
+// 🧠 Body Parser
+// ======================
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
+// ======================
 // 🖼️ Static Files
+// ======================
 app.use("/uploads", express.static("uploads"));
 
+// ======================
 // 💓 Health Check
+// ======================
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "success",
@@ -96,6 +121,7 @@ app.use("/api/security", require("./src/routes/securityRoutes"));
 // 🚫 404 Handler
 // ======================
 app.use((req, res, next) => {
+  writeLog(`❌ [404] Route không tồn tại: ${req.originalUrl}`);
   res.status(404).json({
     status: "error",
     message: "Route không tồn tại",
@@ -103,14 +129,12 @@ app.use((req, res, next) => {
 });
 
 // ======================
-// ❌ Global Express Error Handler
+// ❌ Global Error Handler
 // ======================
 app.use((err, req, res, next) => {
-  console.error("\n🔥 [Express Error Middleware Triggered]");
-  console.error("👉 URL:", req.originalUrl);
-  console.error("👉 Method:", req.method);
-  console.error("👉 Message:", err.message);
-  console.error("👉 Stack:\n", err.stack);
+  writeLog(`🔥 [Express Error] ${err.message}`);
+  writeLog(`👉 URL: ${req.originalUrl}`);
+  writeLog(`👉 Stack: ${err.stack}`);
 
   errorHandler(err, req, res, next);
 });
@@ -120,8 +144,7 @@ app.use((err, req, res, next) => {
 // ======================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server đang chạy trên port ${PORT}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log(`🔗 Base URL: http://0.0.0.0:${PORT}`);
-  console.log(`📚 Swagger Docs: https://attendacestystem.duckdns.org/api/docs`);
+  writeLog(`🚀 Server đang chạy trên port ${PORT}`);
+  writeLog(`📍 Environment: ${process.env.NODE_ENV || "development"}`);
+  writeLog(`📚 Swagger Docs: https://attendacestystem.duckdns.org/api/docs`);
 });

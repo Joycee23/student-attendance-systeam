@@ -28,11 +28,26 @@ exports.createSession = async (req, res) => {
       lateThreshold
     } = req.body;
 
-    // Verify lecturer teaches this course
-    const subject = await Subject.findById(courseId);
-    if (!subject || !subject.lecturerIds.includes(req.user.id)) {
-      return errorResponse(res, 'You are not authorized to create session for this course', 403);
-    }
+const subject = await Subject.findById(courseId);
+if (!subject) {
+  return errorResponse(res, 'Course not found', 404);
+}
+if (req.user.role === 'admin') {
+  console.log(' Admin is creating session for course:', subject.name);
+}
+else if (req.user.role === 'lecturer') {
+  const lecturerMatch =
+    (Array.isArray(subject.lecturerIds) && subject.lecturerIds.includes(req.user.id)) ||
+    (subject.lecturerId && subject.lecturerId.toString() === req.user.id);
+
+  if (!lecturerMatch) {
+    return errorResponse(res, 'You are not authorized to create session for this course', 403);
+  }
+}
+else {
+  return errorResponse(res, 'Only lecturer or admin can create sessions', 403);
+}
+
 
     // Create session
     const session = await AttendanceSession.create({

@@ -483,10 +483,7 @@ const validateGenerateReport = [
     .withMessage("Invalid end date format")
     .toDate()
     .custom((value, { req }) => {
-      if (
-        req.body.startDate &&
-        new Date(value) < new Date(req.body.startDate)
-      ) {
+      if (req.body.startDate && new Date(value) < new Date(req.body.startDate)) {
         throw new Error("End date must be after start date");
       }
       return true;
@@ -513,9 +510,11 @@ const validatePagination = [
   validate,
 ];
 
+// ✅ UPDATED VERSION — now supports id, classId, studentId, lecturerId
 const validateMongoId = [
-  param("id").isMongoId().withMessage("Invalid ID format"),
-
+  param(["id", "classId", "studentId", "lecturerId"])
+    .custom((value) => /^[0-9a-fA-F]{24}$/.test(value))
+    .withMessage("Invalid ID format"),
   validate,
 ];
 

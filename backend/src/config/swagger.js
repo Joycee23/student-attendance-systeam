@@ -10,7 +10,7 @@ const options = {
     },
     servers: [
       {
-        url: 'https://studentsattendance.duckdns.org',
+        url: 'https://attendacestystem.duckdns.org',
         description: 'Production server',
       },
       {

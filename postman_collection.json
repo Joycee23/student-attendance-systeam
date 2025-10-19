@@ -1,0 +1,786 @@
+{
+  "info": {
+    "name": "Student Attendance System API Tests",
+    "description": "Complete API test collection for Student Attendance System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "🏥 Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Register Admin User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"System Admin\",\n  \"email\": \"admin@test.com\",\n  \"password\": \"admin123\",\n  \"role\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has success status\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has user data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('user');",
+                  "    pm.expect(jsonData.data).to.have.property('token');",
+                  "});",
+                  "",
+                  "// Store admin token",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data.token) {",
+                  "    pm.collectionVariables.set(\"admin_token\", jsonData.data.token);",
+                  "    console.log('Admin token stored:', jsonData.data.token.substring(0, 20) + '...');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Lecturer User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"John Lecturer\",\n  \"email\": \"lecturer@test.com\",\n  \"password\": \"lecturer123\",\n  \"role\": \"lecturer\",\n  \"lecturerCode\": \"GV001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has success status\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "});",
+                  "",
+                  "// Store lecturer token",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data.token) {",
+                  "    pm.collectionVariables.set(\"lecturer_token\", jsonData.data.token);",
+                  "    console.log('Lecturer token stored');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Student User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Alice Student\",\n  \"email\": \"student@test.com\",\n  \"password\": \"student123\",\n  \"role\": \"student\",\n  \"studentCode\": \"SV001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "// Store student token",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data.token) {",
+                  "    pm.collectionVariables.set(\"student_token\", jsonData.data.token);",
+                  "    console.log('Student token stored');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@test.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Login successful\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.message).to.eql('Login successful');",
+                  "});",
+                  "",
+                  "// Store admin token",
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set(\"admin_token\", jsonData.data.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Lecturer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"lecturer@test.com\",\n  \"password\": \"lecturer123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// Store lecturer token",
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set(\"lecturer_token\", jsonData.data.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Student",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"student@test.com\",\n  \"password\": \"student123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// Store student token",
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set(\"student_token\", jsonData.data.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Current User Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "me"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Returns user data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data).to.have.property('user');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "👥 Users Management",
+      "item": [
+        {
+          "name": "Create User (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Bob Wilson\",\n  \"email\": \"bob@test.com\",\n  \"password\": \"password123\",\n  \"role\": \"student\",\n  \"studentCode\": \"SV002\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users"]
+            }
+          }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users"]
+            }
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Bob Wilson Updated\",\n  \"phoneNumber\": \"0987654321\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏫 Classes Management",
+      "item": [
+        {
+          "name": "Create Class",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"CNTT01\",\n  \"lecturerId\": \"{{lecturer_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/classes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "classes"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Store class ID",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data.class) {",
+                  "    pm.collectionVariables.set(\"class_id\", jsonData.data.class._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Classes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/classes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "classes"]
+            }
+          }
+        },
+        {
+          "name": "Get Class by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/classes/{{class_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "classes", "{{class_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Add Student to Class",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{student_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/classes/{{class_id}}/students",
+              "host": ["{{base_url}}"],
+              "path": ["api", "classes", "{{class_id}}", "students"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📚 Subjects Management",
+      "item": [
+        {
+          "name": "Create Subject",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"WEB101\",\n  \"name\": \"Web Development\",\n  \"credits\": 3\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/subjects",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subjects"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Store subject ID",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data.subject) {",
+                  "    pm.collectionVariables.set(\"subject_id\", jsonData.data.subject._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Subjects",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/subjects",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subjects"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Attendance Management",
+      "item": [
+        {
+          "name": "Create Attendance Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{lecturer_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{subject_id}}\",\n  \"classId\": \"{{class_id}}\",\n  \"sessionDate\": \"2024-01-15\",\n  \"startTime\": \"2024-01-15T08:00:00.000Z\",\n  \"endTime\": \"2024-01-15T10:00:00.000Z\",\n  \"location\": \"Room 101\",\n  \"sessionNumber\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/attendance/sessions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "attendance", "sessions"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Store session ID",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data.session) {",
+                  "    pm.collectionVariables.set(\"session_id\", jsonData.data.session._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Attendance Sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{lecturer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/attendance/sessions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "attendance", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Manual Check-in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{lecturer_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{session_id}}\",\n  \"studentId\": \"{{student_id}}\",\n  \"status\": \"present\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/attendance/checkin/manual",
+              "host": ["{{base_url}}"],
+              "path": ["api", "attendance", "checkin", "manual"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📈 Statistics",
+      "item": [
+        {
+          "name": "Get Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/statistics/dashboard",
+              "host": ["{{base_url}}"],
+              "path": ["api", "statistics", "dashboard"]
+            }
+          }
+        },
+        {
+          "name": "Get Class Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{lecturer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/statistics/classes/{{class_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "statistics", "classes", "{{class_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔔 Notifications",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{student_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications"]
+            }
+          }
+        },
+        {
+          "name": "Create Notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test Notification\",\n  \"message\": \"This is a test notification\",\n  \"userIds\": [\"{{student_id}}\"],\n  \"type\": \"info\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/notifications",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://attendacestystem.duckdns.org"
+    },
+    {
+      "key": "admin_token",
+      "value": ""
+    },
+    {
+      "key": "lecturer_token",
+      "value": ""
+    },
+    {
+      "key": "student_token",
+      "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": ""
+    },
+    {
+      "key": "class_id",
+      "value": ""
+    },
+    {
+      "key": "subject_id",
+      "value": ""
+    },
+    {
+      "key": "student_id",
+      "value": ""
+    },
+    {
+      "key": "lecturer_id",
+      "value": ""
+    },
+    {
+      "key": "session_id",
+      "value": ""
+    }
+  ]
+}
