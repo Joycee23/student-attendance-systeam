@@ -335,4 +335,4 @@ while True:
 cap.release()
 cv2.destroyAllWindows()
 print("✅ System stopped!")
-
+co

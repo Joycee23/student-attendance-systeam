@@ -179,61 +179,57 @@ import face_recognition
 import numpy as np
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, 'data')
-IMAGES_DIR = os.path.join(DATA_DIR, 'images_fixed')
-ENCODINGS_DIR = os.path.join(DATA_DIR, 'encodings')
+DATA_DIR = os.path.join(BASE_DIR, "../data")
+IMAGES_DIR = r"D:\monthu2\student-attendance-systeam\data\images_fixed"
+
+ENCODINGS_DIR = os.path.join(DATA_DIR, "encodings")
 
 os.makedirs(ENCODINGS_DIR, exist_ok=True)
 
-print("🔍 Scanning images from:", IMAGES_DIR)
+print(f"🔍 Scanning images from: {IMAGES_DIR}")
 
+# Duyệt từng thư mục học sinh
 for student_folder in os.listdir(IMAGES_DIR):
     student_path = os.path.join(IMAGES_DIR, student_folder)
     if not os.path.isdir(student_path):
         continue
 
     print(f"\n📸 Processing {student_folder}...")
+
     encodings = []
 
-    for img_name in os.listdir(student_path):
-        if not img_name.lower().endswith(('.jpg', '.jpeg', '.png')):
+    # Duyệt tất cả ảnh trong thư mục học sinh
+    for img_file in os.listdir(student_path):
+        img_path = os.path.join(student_path, img_file)
+        if not img_file.lower().endswith((".jpg", ".jpeg", ".png")):
             continue
 
-        img_path = os.path.join(student_path, img_name)
-        image = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
-
+        # ===== Load ảnh an toàn =====
+        image = cv2.imread(img_path, cv2.IMREAD_COLOR)          # BGR
         if image is None:
-            print(f"⚠️ Cannot read {img_name}")
+            print(f"⚠️ Cannot read {img_file}, skipping...")
             continue
 
-        # ===== FIX chính lỗi bạn gặp =====
-        if image.ndim == 2:  # grayscale
-            image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-        elif image.shape[2] == 4:  # BGRA -> BGR (bỏ alpha)
-            image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)     # RGB
+        rgb_image = rgb_image.astype(np.uint8)                 # 8-bit
 
-        # Convert BGR -> RGB
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-        # Detect face
-        face_locations = face_recognition.face_locations(image, model="hog")
+        # ===== Tìm khuôn mặt =====
+        face_locations = face_recognition.face_locations(rgb_image, model="hog")
         if len(face_locations) == 0:
-            print(f"⚠️ No face found in {img_name}")
+            print(f"⚠️ No face found in {img_file}, skipping...")
             continue
 
-        enc = face_recognition.face_encodings(image, face_locations)[0]
-        encodings.append(enc)
-        print(f"✅ Face encoded: {img_name}")
+        # ===== Lấy encoding =====
+        face_encs = face_recognition.face_encodings(rgb_image, face_locations)
+        encodings.extend(face_encs)
 
-    if not encodings:
-        print(f"❌ No valid encodings for {student_folder}")
+    if len(encodings) == 0:
+        print(f"⚠️ No valid encodings for {student_folder}, skipping saving.")
         continue
 
-    # Save encodings
-    output_path = os.path.join(ENCODINGS_DIR, f"{student_folder}.pkl")
-    with open(output_path, "wb") as f:
-        pickle.dump({"encodings": encodings}, f)
+    # Lưu encoding vào file .pkl
+    encoding_file = os.path.join(ENCODINGS_DIR, f"{student_folder}.pkl")
+    with open(encoding_file, "wb") as f:
+        pickle.dump({"name": student_folder, "encodings": encodings}, f)
 
-    print(f"🎯 Saved {len(encodings)} encodings → {output_path}")
-
-print("\n✅ DONE! All encodings generated successfully.")
+    print(f"✅ Saved {len(encodings)} encodings for {student_folder}")
