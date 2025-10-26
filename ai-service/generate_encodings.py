@@ -178,12 +178,9 @@ import pickle
 import face_recognition
 import numpy as np
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "../data")
+# ====== Cấu hình thư mục ======
 IMAGES_DIR = r"D:\monthu2\student-attendance-systeam\data\images_fixed"
-
-
-ENCODINGS_DIR = os.path.join(DATA_DIR, "encodings")
+ENCODINGS_DIR = r"D:\monthu2\student-attendance-systeam\data\encodings"
 
 os.makedirs(ENCODINGS_DIR, exist_ok=True)
 
@@ -196,31 +193,29 @@ for student_folder in os.listdir(IMAGES_DIR):
         continue
 
     print(f"\n📸 Processing {student_folder}...")
-
     encodings = []
 
-    # Duyệt tất cả ảnh trong thư mục học sinh
     for img_file in os.listdir(student_path):
         img_path = os.path.join(student_path, img_file)
         if not img_file.lower().endswith((".jpg", ".jpeg", ".png")):
             continue
 
-        # ===== Load ảnh an toàn =====
-        image = cv2.imread(img_path, cv2.IMREAD_COLOR)          # BGR
+        # Load ảnh và chuyển sang RGB 8-bit
+        image = cv2.imread(img_path)
         if image is None:
             print(f"⚠️ Cannot read {img_file}, skipping...")
             continue
 
-        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)     # RGB
-        rgb_image = rgb_image.astype(np.uint8)                 # 8-bit
+        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        rgb_image = rgb_image.astype(np.uint8)
 
-        # ===== Tìm khuôn mặt =====
+        # Tìm khuôn mặt
         face_locations = face_recognition.face_locations(rgb_image, model="hog")
         if len(face_locations) == 0:
             print(f"⚠️ No face found in {img_file}, skipping...")
             continue
 
-        # ===== Lấy encoding =====
+        # Lấy encoding
         face_encs = face_recognition.face_encodings(rgb_image, face_locations)
         encodings.extend(face_encs)
 
