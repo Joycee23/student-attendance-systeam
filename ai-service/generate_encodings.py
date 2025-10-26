@@ -182,6 +182,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "../data")
 IMAGES_DIR = r"D:\monthu2\student-attendance-systeam\data\images_fixed"
 
+
 ENCODINGS_DIR = os.path.join(DATA_DIR, "encodings")
 
 os.makedirs(ENCODINGS_DIR, exist_ok=True)
