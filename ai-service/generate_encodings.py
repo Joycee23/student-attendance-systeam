@@ -178,23 +178,32 @@ import pickle
 import face_recognition
 import numpy as np
 
-# ====== Cấu hình thư mục ======
+# ====== Đường dẫn ======
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "../data")
+# Đường dẫn tuyệt đối
 IMAGES_DIR = r"D:\monthu2\student-attendance-systeam\data\images_fixed"
-ENCODINGS_DIR = r"D:\monthu2\student-attendance-systeam\data\encodings"
+ENCODINGS_DIR = os.path.join(DATA_DIR, "encodings")
 
+print(os.path.exists(IMAGES_DIR))
 os.makedirs(ENCODINGS_DIR, exist_ok=True)
 
-print(f"🔍 Scanning images from: {IMAGES_DIR}")
-
-# Duyệt từng thư mục học sinh
+# ====== Duyệt từng thư mục sinh viên ======
 for student_folder in os.listdir(IMAGES_DIR):
     student_path = os.path.join(IMAGES_DIR, student_folder)
     if not os.path.isdir(student_path):
         continue
 
     print(f"\n📸 Processing {student_folder}...")
+
     encodings = []
 
+    # Thông tin cơ bản: student_id lấy theo tên folder (hoặc tùy chỉnh)
+    student_id = student_folder
+    student_name = student_folder
+    student_class = "Unknown"
+
+    # ====== Duyệt từng ảnh trong folder ======
     for img_file in os.listdir(student_path):
         img_path = os.path.join(student_path, img_file)
         if not img_file.lower().endswith((".jpg", ".jpeg", ".png")):
@@ -223,9 +232,19 @@ for student_folder in os.listdir(IMAGES_DIR):
         print(f"⚠️ No valid encodings for {student_folder}, skipping saving.")
         continue
 
-    # Lưu encoding vào file .pkl
-    encoding_file = os.path.join(ENCODINGS_DIR, f"{student_folder}.pkl")
-    with open(encoding_file, "wb") as f:
-        pickle.dump({"name": student_folder, "encodings": encodings}, f)
+    # Tạo dữ liệu chuẩn cho webcam
+    data = {
+        "encodings": encodings,
+        "info": {
+            "student_id": student_id,
+            "name": student_name,
+            "class": student_class
+        }
+    }
 
-    print(f"✅ Saved {len(encodings)} encodings for {student_folder}")
+    # Lưu file .pkl cho mỗi sinh viên
+    file_path = os.path.join(ENCODINGS_DIR, f"{student_id}.pkl")
+    with open(file_path, "wb") as f:
+        pickle.dump(data, f)
+
+    print(f"✅ Saved {len(encodings)} encodings for {student_name} ({student_id})")
