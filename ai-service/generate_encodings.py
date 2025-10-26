@@ -172,3 +172,68 @@
 #         print(f"❌ No valid encodings for {student_folder}")
 
 # print("🎯 DONE! All encodings generated successfully.")
+import os
+import cv2
+import pickle
+import face_recognition
+import numpy as np
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+IMAGES_DIR = os.path.join(DATA_DIR, 'images_fixed')
+ENCODINGS_DIR = os.path.join(DATA_DIR, 'encodings')
+
+os.makedirs(ENCODINGS_DIR, exist_ok=True)
+
+print("🔍 Scanning images from:", IMAGES_DIR)
+
+for student_folder in os.listdir(IMAGES_DIR):
+    student_path = os.path.join(IMAGES_DIR, student_folder)
+    if not os.path.isdir(student_path):
+        continue
+
+    print(f"\n📸 Processing {student_folder}...")
+    encodings = []
+
+    for img_name in os.listdir(student_path):
+        if not img_name.lower().endswith(('.jpg', '.jpeg', '.png')):
+            continue
+
+        img_path = os.path.join(student_path, img_name)
+        image = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
+
+        if image is None:
+            print(f"⚠️ Cannot read {img_name}")
+            continue
+
+        # ===== FIX chính lỗi bạn gặp =====
+        if image.ndim == 2:  # grayscale
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        elif image.shape[2] == 4:  # BGRA -> BGR (bỏ alpha)
+            image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+
+        # Convert BGR -> RGB
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        # Detect face
+        face_locations = face_recognition.face_locations(image, model="hog")
+        if len(face_locations) == 0:
+            print(f"⚠️ No face found in {img_name}")
+            continue
+
+        enc = face_recognition.face_encodings(image, face_locations)[0]
+        encodings.append(enc)
+        print(f"✅ Face encoded: {img_name}")
+
+    if not encodings:
+        print(f"❌ No valid encodings for {student_folder}")
+        continue
+
+    # Save encodings
+    output_path = os.path.join(ENCODINGS_DIR, f"{student_folder}.pkl")
+    with open(output_path, "wb") as f:
+        pickle.dump({"encodings": encodings}, f)
+
+    print(f"🎯 Saved {len(encodings)} encodings → {output_path}")
+
+print("\n✅ DONE! All encodings generated successfully.")

@@ -147,189 +147,92 @@
 # video_capture.release()
 # cv2.destroyAllWindows()
 # print("👋 Camera stopped.")
-# ai-service/models/camera_recognition.py
-import cv2
-import face_recognition
 import os
-import numpy as np
+import cv2
 import pickle
-import argparse
-import time
-from collections import deque
+import face_recognition
+import numpy as np
+import csv
+from datetime import datetime
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # ai-service/models -> ai-service
-ENC_DIR = os.path.join(BASE_DIR, "data", "encodings")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "../data")
+ENCODINGS_DIR = os.path.join(DATA_DIR, "encodings")
+ATTENDANCE_FILE = os.path.join(DATA_DIR, "attendance_logs.csv")
 
-# ---------- Argument parser ----------
-parser = argparse.ArgumentParser(description="Camera multi-face recognition (webcam or IP)")
-parser.add_argument("--source", type=str, default="0",
-                    help="camera source. '0' for default webcam, or IP/rtsp URL")
-parser.add_argument("--tolerance", type=float, default=0.48,
-                    help="face distance threshold (lower = stricter)")
-parser.add_argument("--scale", type=float, default=0.25,
-                    help="resize scale for speed (0.25 = process at 1/4 size)")
-parser.add_argument("--post-url", type=str, default="",
-                    help="(optional) POST URL to send recognition result (attendance).")
-parser.add_argument("--debounce-sec", type=float, default=10.0,
-                    help="seconds to debounce same student before re-marking")
-parser.add_argument("--display", action="store_true", help="show window")
-args = parser.parse_args()
+# ====== Initialize CSV if not exists ======
+if not os.path.exists(ATTENDANCE_FILE):
+    with open(ATTENDANCE_FILE, mode="w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["timestamp", "name", "status"])
+    print("📄 Created attendance_logs.csv")
 
-# ---------- Load encodings (each file per student: {encodings: [...], info: {...}}) ----------
+# Track students already logged
+logged_students = set()
+
+# ====== Load encodings ======
 known_encodings = []
-known_infos = []
+known_names = []
 
-if not os.path.exists(ENC_DIR):
-    raise SystemExit(f"Encodings folder not found: {ENC_DIR}")
+print("🔍 Loading encodings...")
+for file in os.listdir(ENCODINGS_DIR):
+    if file.endswith(".pkl"):
+        data = pickle.load(open(os.path.join(ENCODINGS_DIR, file), "rb"))
+        student_name = file.replace(".pkl", "")
+        for enc in data["encodings"]:
+            known_encodings.append(enc)
+            known_names.append(student_name)
 
-for f in os.listdir(ENC_DIR):
-    if not f.lower().endswith(".pkl"):
-        continue
-    try:
-        path = os.path.join(ENC_DIR, f)
-        with open(path, "rb") as fh:
-            data = pickle.load(fh)
-        encs = data.get("encodings", [])
-        info = data.get("info", {})
-        # if info missing, build from filename
-        if not info:
-            sid = os.path.splitext(f)[0]
-            info = {"student_id": sid, "name": sid, "class": "Unknown"}
-        for e in encs:
-            if isinstance(e, np.ndarray):
-                known_encodings.append(e)
-                known_infos.append(info)
-    except Exception as e:
-        print(f"⚠️ Failed to load {f}: {e}")
+print(f"✅ Loaded {len(known_encodings)} encodings!")
 
-print(f"✅ Loaded {len(known_encodings)} encodings for {len(set(i['student_id'] for i in known_infos))} students")
-
-# ---------- Video source ----------
-src = args.source
-if src.isdigit():
-    cam_src = int(src)
-else:
-    cam_src = src  # could be "rtsp://..." or http stream
-
-cap = cv2.VideoCapture(cam_src)
+# ====== Webcam start ======
+cap = cv2.VideoCapture(0)
 if not cap.isOpened():
-    raise SystemExit(f"❌ Cannot open camera source: {cam_src}")
+    print("❌ Webcam not detected!")
+    exit()
 
-# ---------- Debounce tracker: student_id -> last_seen_time ----------
-last_seen = {}  # {student_id: timestamp}
-recent_unknown = deque(maxlen=100)  # store unknown face hashes if needed
+print("🎥 Camera ready! Press 'q' to stop")
 
-def mark_attendance(info):
-    """Mark attendance: simple debounce and optional POST"""
-    sid = info.get("student_id")
-    now = time.time()
-    last = last_seen.get(sid, 0)
-    if now - last < args.debounce_sec:
-        return False  # already recently marked
-    last_seen[sid] = now
-    print(f"✅ Detected: {info.get('name')} ({sid})  time={time.strftime('%H:%M:%S')}")
-    # optional: post to attendance API
-    if args.post_url:
-        try:
-            import requests
-            payload = {
-                "student_id": sid,
-                "name": info.get("name"),
-                "classroom_id": info.get("class", "Unknown"),
-                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S")
-            }
-            resp = requests.post(args.post_url, json=payload, timeout=5)
-            print(f"→ POST {args.post_url} => {resp.status_code}")
-        except Exception as e:
-            print(f"⚠️ POST error: {e}")
-    return True
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
 
-process_frame = True
-fps_time = time.time()
-frame_count = 0
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    locations = face_recognition.face_locations(rgb_frame)
+    encodings = face_recognition.face_encodings(rgb_frame, locations)
 
-print("🎥 Press Ctrl+C to stop. Processing...")
+    for (top, right, bottom, left), face_enc in zip(locations, encodings):
+        matches = face_recognition.compare_faces(known_encodings, face_enc, tolerance=0.48)
+        name = "Unknown"
 
-try:
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            print("⚠️ Failed to read frame; retrying...")
-            time.sleep(0.5)
-            continue
+        if True in matches:
+            idxs = np.where(matches)[0]
+            counts = {}
+            for i in idxs:
+                counts[known_names[i]] = counts.get(known_names[i], 0) + 1
+            name = max(counts, key=counts.get)
 
-        # optionally display original FPS count
-        frame_count += 1
-        h, w = frame.shape[:2]
+        # Draw box
+        color = (0, 255, 0) if name != "Unknown" else (0, 0, 255)
+        cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
+        cv2.putText(frame, name, (left, top - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
 
-        # resize for speed
-        small = cv2.resize(frame, (0, 0), fx=args.scale, fy=args.scale)
-        rgb_small = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+        # Log attendance once
+        if name != "Unknown" and name not in logged_students:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            with open(ATTENDANCE_FILE, mode="a", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow([timestamp, name, "Present"])
+            
+            logged_students.add(name)
+            print(f"✅ Attendance logged: {name} at {timestamp}")
 
-        if process_frame:
-            # detect faces and encodings
-            face_locations = face_recognition.face_locations(rgb_small, model="hog")  # "cnn" if GPU & dlib compiled
-            face_encodings = face_recognition.face_encodings(rgb_small, face_locations)
+    cv2.imshow("🎯 Face Recognition / Q = Quit", frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
-            results = []
-            for enc, loc in zip(face_encodings, face_locations):
-                if len(known_encodings) == 0:
-                    results.append((None, loc, None))
-                    continue
-                distances = face_recognition.face_distance(known_encodings, enc)
-                best_idx = np.argmin(distances)
-                best_dist = float(distances[best_idx])
-                if best_dist <= args.tolerance:
-                    info = known_infos[best_idx]
-                    results.append((info, loc, best_dist))
-                    # attempt mark attendance (debounced inside)
-                    mark_attendance(info)
-                else:
-                    results.append((None, loc, best_dist))
-                    # optional: collect unknown face (hash) for review
-                    # unknown_hash = np.round(enc[:8], 3).tobytes()
-                    # recent_unknown.append(unknown_hash)
-        process_frame = not process_frame
-
-        # draw boxes & labels on original size frame
-        # scale back locations
-        if 'results' in locals():
-            for info, loc, dist in results:
-                top, right, bottom, left = loc
-                # scale up to original
-                top = int(top / args.scale)
-                right = int(right / args.scale)
-                bottom = int(bottom / args.scale)
-                left = int(left / args.scale)
-
-                color = (0, 255, 0) if info else (0, 0, 255)
-                cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
-
-                if info:
-                    label = f"{info.get('name')} ({info.get('student_id')})"
-                    sub = f"{info.get('class', '')} dist:{dist:.2f}"
-                else:
-                    label = "Unknown"
-                    sub = f"dist:{dist:.2f}"
-
-                cv2.putText(frame, label, (left, top - 22), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
-                cv2.putText(frame, sub, (left, top - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-
-        # display (optional)
-        if args.display:
-            # compute FPS
-            if time.time() - fps_time >= 1.0:
-                fps = frame_count / (time.time() - fps_time)
-                fps_time = time.time()
-                frame_count = 0
-            cv2.imshow("MultiFace Recognition", frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-except KeyboardInterrupt:
-    print("\n🔴 Stopped by user")
-
-finally:
-    cap.release()
-    if args.display:
-        cv2.destroyAllWindows()
+cap.release()
+cv2.destroyAllWindows()
+print("✅ Camera stopped!")
