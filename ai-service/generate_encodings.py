@@ -258,6 +258,95 @@
 
 # print("\n🎯 Tất cả sinh viên đã được tạo encoding thành công!")
 
+# import os
+# import cv2
+# import pickle
+# import face_recognition
+# import numpy as np
+# import shutil
+
+# # ====== Folder ======
+# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# DATA_DIR = os.path.join(BASE_DIR, "../data")
+# RAW_DIR = os.path.join(DATA_DIR, "images_raw")      # ảnh gốc
+# FIXED_DIR = os.path.join(DATA_DIR, "images_fixed")  # folder con cho từng sinh viên
+# ENCODINGS_DIR = os.path.join(DATA_DIR, "encodings") # lưu .pkl
+
+# # Tạo folder nếu chưa có
+# os.makedirs(RAW_DIR, exist_ok=True)
+# os.makedirs(FIXED_DIR, exist_ok=True)
+# os.makedirs(ENCODINGS_DIR, exist_ok=True)
+
+# # Kiểm tra ảnh raw
+# raw_files = [f for f in os.listdir(RAW_DIR) if f.lower().endswith((".jpg",".jpeg",".png"))]
+# if not raw_files:
+#     print(f"⚠️ Folder {RAW_DIR} đang trống. Hãy bỏ ảnh sinh viên vào.")
+#     exit()
+
+# print(f"🔍 Tìm thấy {len(raw_files)} ảnh trong {RAW_DIR}")
+
+# # ====== Chuẩn bị folder con và copy ảnh ======
+# for file in raw_files:
+#     file_path = os.path.join(RAW_DIR, file)
+#     # ID/Tên từ file: 12345_TranThiB.jpg
+#     name_part = os.path.splitext(file)[0]
+#     student_folder = os.path.join(FIXED_DIR, name_part)
+#     os.makedirs(student_folder, exist_ok=True)
+#     dst = os.path.join(student_folder, file)
+#     shutil.copy2(file_path, dst)
+#     print(f"✅ Đã chuẩn bị ảnh cho {name_part}")
+
+# # ====== Tạo encoding ======
+# for student_folder_name in os.listdir(FIXED_DIR):
+#     student_folder = os.path.join(FIXED_DIR, student_folder_name)
+#     if not os.path.isdir(student_folder):
+#         continue
+
+#     encodings = []
+#     for img_file in os.listdir(student_folder):
+#         img_path = os.path.join(student_folder, img_file)
+#         image = cv2.imread(img_path)
+#         if image is None:
+#             print(f"⚠️ Không đọc được {img_file}, bỏ qua.")
+#             continue
+
+#         # Chuyển sang RGB 8-bit
+#         rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+#         rgb_image = rgb_image.astype(np.uint8)
+
+#         # Dò khuôn mặt
+#         face_locations = face_recognition.face_locations(rgb_image, model="hog")
+#         if len(face_locations) == 0:
+#             print(f"⚠️ Không tìm thấy khuôn mặt trong {img_file}, bỏ qua.")
+#             continue
+
+#         # Tạo encoding
+#         face_encs = face_recognition.face_encodings(rgb_image, face_locations)
+#         encodings.extend(face_encs)
+
+#     if len(encodings) == 0:
+#         print(f"⚠️ Không tạo được encoding cho {student_folder_name}, bỏ qua.")
+#         continue
+
+#     # Tạo dữ liệu chuẩn cho Flask/Webcam
+#     data = {
+#         "encodings": encodings,
+#         "info": {
+#             "student_id": student_folder_name,
+#             "name": student_folder_name,
+#             "class": "Unknown"
+#         }
+#     }
+
+#     # Lưu file .pkl
+#     file_path = os.path.join(ENCODINGS_DIR, f"{student_folder_name}.pkl")
+#     with open(file_path, "wb") as f:
+#         pickle.dump(data, f)
+
+#     print(f"✅ Đã lưu encoding cho {student_folder_name}")
+
+# print("\n🎯 Hoàn tất tất cả sinh viên!")
+
 import os
 import cv2
 import pickle
@@ -268,28 +357,32 @@ import shutil
 # ====== Folder ======
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "../data")
-RAW_DIR = os.path.join(DATA_DIR, "images_raw")      # ảnh gốc
-FIXED_DIR = os.path.join(DATA_DIR, "images_fixed")  # folder con cho từng sinh viên
-ENCODINGS_DIR = os.path.join(DATA_DIR, "encodings") # lưu .pkl
+RAW_DIR = r"D:\monthu2\student-attendance-systeam\data\images_raw"  # đường dẫn tuyệt đối
+FIXED_DIR = os.path.join(DATA_DIR, "images_fixed")
+ENCODINGS_DIR = os.path.join(DATA_DIR, "encodings")
 
 # Tạo folder nếu chưa có
 os.makedirs(RAW_DIR, exist_ok=True)
 os.makedirs(FIXED_DIR, exist_ok=True)
 os.makedirs(ENCODINGS_DIR, exist_ok=True)
 
-# Kiểm tra ảnh raw
-raw_files = [f for f in os.listdir(RAW_DIR) if f.lower().endswith((".jpg",".jpeg",".png"))]
+# Debug: kiểm tra folder và file
+print(f"RAW_DIR = {RAW_DIR}")
+print("Folder tồn tại?", os.path.exists(RAW_DIR))
+print("Danh sách file trong folder:", os.listdir(RAW_DIR))
+
+# Lọc ảnh hợp lệ
+raw_files = [f for f in os.listdir(RAW_DIR) if f.lower().endswith((".jpg", ".jpeg", ".png"))]
+print(f"🔍 Phát hiện {len(raw_files)} ảnh hợp lệ trong RAW_DIR")
+
 if not raw_files:
     print(f"⚠️ Folder {RAW_DIR} đang trống. Hãy bỏ ảnh sinh viên vào.")
     exit()
 
-print(f"🔍 Tìm thấy {len(raw_files)} ảnh trong {RAW_DIR}")
-
 # ====== Chuẩn bị folder con và copy ảnh ======
 for file in raw_files:
     file_path = os.path.join(RAW_DIR, file)
-    # ID/Tên từ file: 12345_TranThiB.jpg
-    name_part = os.path.splitext(file)[0]
+    name_part = os.path.splitext(file)[0]  # 12345_TranThiB
     student_folder = os.path.join(FIXED_DIR, name_part)
     os.makedirs(student_folder, exist_ok=True)
     dst = os.path.join(student_folder, file)
@@ -310,17 +403,14 @@ for student_folder_name in os.listdir(FIXED_DIR):
             print(f"⚠️ Không đọc được {img_file}, bỏ qua.")
             continue
 
-        # Chuyển sang RGB 8-bit
         rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         rgb_image = rgb_image.astype(np.uint8)
 
-        # Dò khuôn mặt
         face_locations = face_recognition.face_locations(rgb_image, model="hog")
         if len(face_locations) == 0:
             print(f"⚠️ Không tìm thấy khuôn mặt trong {img_file}, bỏ qua.")
             continue
 
-        # Tạo encoding
         face_encs = face_recognition.face_encodings(rgb_image, face_locations)
         encodings.extend(face_encs)
 
@@ -328,7 +418,6 @@ for student_folder_name in os.listdir(FIXED_DIR):
         print(f"⚠️ Không tạo được encoding cho {student_folder_name}, bỏ qua.")
         continue
 
-    # Tạo dữ liệu chuẩn cho Flask/Webcam
     data = {
         "encodings": encodings,
         "info": {
@@ -338,7 +427,6 @@ for student_folder_name in os.listdir(FIXED_DIR):
         }
     }
 
-    # Lưu file .pkl
     file_path = os.path.join(ENCODINGS_DIR, f"{student_folder_name}.pkl")
     with open(file_path, "wb") as f:
         pickle.dump(data, f)
