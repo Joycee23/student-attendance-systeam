@@ -1,1 +1,5 @@
-python-dotenv==1.1.1
+flask
+pymongo
+face_recognition
+numpy
+opencv-python-headless
